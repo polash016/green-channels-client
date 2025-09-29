@@ -193,6 +193,33 @@ export function CategoryTable() {
     });
   };
 
+  // Helper function to determine category level
+  const getCategoryLevel = (category, allCategories = categories?.data) => {
+    if (!category.parentId) {
+      return "Main";
+    }
+
+    // Try to find the parent category in the full categories array
+    let parent = allCategories?.find((cat) => cat.id === category.parentId);
+
+    // If not found in allCategories, try using the category.parent object as fallback
+    if (!parent && category.parent) {
+      parent = category.parent;
+    }
+
+    if (!parent) {
+      return "Unknown";
+    }
+
+    // Check if parent has parentId - this is the definitive way to determine level
+    if (!parent.parentId) {
+      return "Sub";
+    }
+
+    // If parent has a parentId, this is a nested category
+    return "Nested";
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -303,19 +330,38 @@ export function CategoryTable() {
                       </h3>
                       <div className="flex items-center gap-2">
                         {/* Category level indicator */}
-                        {!category.parentId ? (
-                          <span className="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full">
-                            Main
-                          </span>
-                        ) : category.parent && !category.parent.parentId ? (
-                          <span className="px-2 py-1 text-xs font-medium bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded-full">
-                            Sub
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full">
-                            Nested
-                          </span>
-                        )}
+                        {(() => {
+                          const level = getCategoryLevel(
+                            category,
+                            categories?.data
+                          );
+                          switch (level) {
+                            case "Main":
+                              return (
+                                <span className="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full">
+                                  Main
+                                </span>
+                              );
+                            case "Sub":
+                              return (
+                                <span className="px-2 py-1 text-xs font-medium bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded-full">
+                                  Sub
+                                </span>
+                              );
+                            case "Nested":
+                              return (
+                                <span className="px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full">
+                                  Nested
+                                </span>
+                              );
+                            default:
+                              return (
+                                <span className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-full">
+                                  Unknown
+                                </span>
+                              );
+                          }
+                        })()}
                         <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">
                           Order: {category.sortOrder || 0}
                         </span>
@@ -328,6 +374,31 @@ export function CategoryTable() {
                           {category.parent.name}
                         </p>
                       )}
+                      {/* Debug information - remove this after testing */}
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        Debug: parentId={category.parentId}, level=
+                        {getCategoryLevel(category, categories?.data)}
+                        {category.parentId && (
+                          <span>
+                            , parent.parentId=
+                            {categories?.data?.find(
+                              (cat) => cat.id === category.parentId
+                            )?.parentId ||
+                              category.parent?.parentId ||
+                              "undefined"}
+                            , totalCategories={categories?.data?.length},
+                            parentFound=
+                            {categories?.data?.find(
+                              (cat) => cat.id === category.parentId
+                            )
+                              ? "Yes"
+                              : "No"}
+                            , usingFallback={category.parent ? "Yes" : "No"},
+                            parentName={category.parent?.name || "None"},
+                            searchTerm={searchTerm || "none"}
+                          </span>
+                        )}
+                      </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {category.products?.length || 0} products
                       </p>

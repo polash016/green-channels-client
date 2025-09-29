@@ -440,7 +440,7 @@ export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
                     {/* Upload Button */}
                     <label className="flex items-center space-x-2 cursor-pointer bg-gray-100 dark:bg-neutral-700 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                       <Upload className="w-4 h-4" />
-                      <span className="text-sm">Upload Images (Multiple)</span>
+                      <span className="text-sm">Upload Images</span>
                       <input
                         type="file"
                         accept="image/*"

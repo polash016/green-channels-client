@@ -177,34 +177,70 @@ export function ProductTable() {
   };
 
   const handleDeleteImage = async (productId, imageIndex) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this image? This action cannot be undone."
-      )
-    ) {
-      setDeletingImageIndex(imageIndex);
-      try {
-        await deleteProductImage({
-          productId,
-          imageIndex,
-        }).unwrap();
-        toast.success("Image deleted successfully!");
-        refetch();
-        // Update the selected product to reflect the change
-        if (selectedProduct && selectedProduct.id === productId) {
-          const updatedProduct = { ...selectedProduct };
-          updatedProduct.imgUrls = updatedProduct.imgUrls.filter(
-            (_, index) => index !== imageIndex
-          );
-          setSelectedProduct(updatedProduct);
-        }
-      } catch (error) {
-        console.error("Delete image error:", error);
-        toast.error("Failed to delete image");
-      } finally {
-        setDeletingImageIndex(null);
+    // Show confirmation toast with custom action buttons
+    toast.custom(
+      (t) => (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 max-w-md">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                Delete Image
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Are you sure you want to delete this image? This action cannot
+                be undone.
+              </p>
+              <div className="flex space-x-2 mt-3">
+                <button
+                  onClick={async () => {
+                    toast.dismiss(t);
+                    setDeletingImageIndex(imageIndex);
+                    try {
+                      await deleteProductImage({
+                        productId,
+                        imageIndex,
+                      }).unwrap();
+                      toast.success("Image deleted successfully!");
+                      refetch();
+                      // Update the selected product to reflect the change
+                      if (selectedProduct && selectedProduct.id === productId) {
+                        const updatedProduct = { ...selectedProduct };
+                        updatedProduct.imgUrls = updatedProduct.imgUrls.filter(
+                          (_, index) => index !== imageIndex
+                        );
+                        setSelectedProduct(updatedProduct);
+                      }
+                    } catch (error) {
+                      console.error("Delete image error:", error);
+                      toast.error("Failed to delete image");
+                    } finally {
+                      setDeletingImageIndex(null);
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => toast.dismiss(t)}
+                  className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+      {
+        duration: Infinity, // Keep open until user decides
       }
-    }
+    );
   };
 
   const formatDate = (dateString) => {

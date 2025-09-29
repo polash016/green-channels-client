@@ -164,6 +164,42 @@ export const ProductGallery = memo(function ProductGallery() {
     router.push("/products");
   }, [router, dispatch]);
 
+  // Handle breadcrumb navigation
+  const handleBreadcrumbClick = useCallback(
+    (categoryId, level) => {
+      const params = new URLSearchParams(window.location.search);
+
+      // Clear all category-related parameters first
+      params.delete("categoryId");
+      params.delete("subcategoryId");
+      params.delete("nestedCategoryId");
+
+      // Set the appropriate parameter based on the level clicked
+      if (level === 0) {
+        // Root category
+        params.set("categoryId", categoryId);
+        dispatch(setCategory(categoryId));
+        dispatch(setSubcategory(""));
+        dispatch(setNestedCategory(""));
+      } else if (level === 1) {
+        // Subcategory
+        params.set("subcategoryId", categoryId);
+        dispatch(setCategory(""));
+        dispatch(setSubcategory(categoryId));
+        dispatch(setNestedCategory(""));
+      } else if (level === 2) {
+        // Nested category
+        params.set("nestedCategoryId", categoryId);
+        dispatch(setCategory(""));
+        dispatch(setSubcategory(""));
+        dispatch(setNestedCategory(categoryId));
+      }
+
+      router.push(`/products?${params.toString()}`);
+    },
+    [router, dispatch]
+  );
+
   // Transform database products to match the expected format for FocusCards
   const transformedProducts = useMemo(() => {
     return products.map((product) => ({
@@ -244,23 +280,41 @@ export const ProductGallery = memo(function ProductGallery() {
             subcategoryId ||
             nestedCategoryId) && (
             <div className="mb-6">
-              <div className="text-lg text-neutral-300">
-                {breadcrumbPath.length > 0
-                  ? breadcrumbPath.map((item, index) => (
-                      <span key={item.id}>
+              <div className="flex items-center justify-center flex-wrap gap-2 text-lg text-neutral-300">
+                {breadcrumbPath.length > 0 ? (
+                  breadcrumbPath.map((item, index) => (
+                    <div key={item.id} className="flex items-center">
+                      <button
+                        onClick={() =>
+                          handleBreadcrumbClick(item.id, item.level)
+                        }
+                        className={`transition-colors duration-200 hover:text-green-400 ${
+                          index === breadcrumbPath.length - 1
+                            ? "text-white font-medium"
+                            : "text-neutral-300 hover:text-green-400"
+                        }`}
+                        title={`Go to ${item.name}`}
+                      >
                         {item.name}
-                        {index < breadcrumbPath.length - 1 && (
-                          <span className="mx-3 text-green-400">→</span>
-                        )}
-                      </span>
-                    ))
-                  : // Fallback: show current category name if breadcrumb path is empty
-                    categoriesData?.data?.find(
-                      (cat) =>
-                        cat.id === selectedCategory ||
-                        cat.id === subcategoryId ||
-                        cat.id === nestedCategoryId
-                    )?.name}
+                      </button>
+                      {index < breadcrumbPath.length - 1 && (
+                        <ChevronRight className="mx-3 text-green-400 w-4 h-4" />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  // Fallback: show current category name if breadcrumb path is empty
+                  <span className="text-white font-medium">
+                    {
+                      categoriesData?.data?.find(
+                        (cat) =>
+                          cat.id === selectedCategory ||
+                          cat.id === subcategoryId ||
+                          cat.id === nestedCategoryId
+                      )?.name
+                    }
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -282,16 +336,19 @@ export const ProductGallery = memo(function ProductGallery() {
               </div>
 
               {/* Clear Filters Button */}
-              {(searchTerm || selectedCategory) && (
+              {/* {(breadcrumbPath.length > 0 ||
+                searchTerm ||
+                selectedCategory ||
+                subcategoryId ||
+                nestedCategoryId) && (
                 <button
                   onClick={handleClearFilters}
-                  className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  className="flex items-center space-x-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                 >
-                  {breadcrumbPath.length > 0
-                    ? "Back to All Products"
-                    : "Clear Filters"}
+                  <Home className="w-4 h-4" />
+                  <span>Back to All Products</span>
                 </button>
-              )}
+              )} */}
             </div>
 
             {/* Category Tabs - Always Visible */}

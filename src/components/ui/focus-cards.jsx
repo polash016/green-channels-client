@@ -5,7 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 
 export const Card = React.memo(({ card, index, hovered, setHovered }) => (
-  <Link href={card.slug ? `/products/${card.slug}` : "#"} className="block">
+  // <Link className="block">
+  <div className="block">
+    {/* href={card.slug ? `/products/${card.slug}` : "#"}  */}
     <div
       onMouseEnter={() => setHovered(index)}
       onMouseLeave={() => setHovered(null)}
@@ -37,7 +39,8 @@ export const Card = React.memo(({ card, index, hovered, setHovered }) => (
         {card.title}
       </div>
     </div>
-  </Link>
+  </div>
+  // {/* </Link> */}
 ));
 
 Card.displayName = "Card";

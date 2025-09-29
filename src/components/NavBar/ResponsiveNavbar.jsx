@@ -249,23 +249,14 @@ const ResponsiveNavbar = memo(function ResponsiveNavbar() {
                               {hoveredCategory.name}
                             </span>
                           </div> */}
-                          <ul className="space-y-1 max-h-64 overflow-auto pr-1 xl:space-y-0 xl:space-x-2 xl:flex xl:flex-wrap xl:max-h-none xl:overflow-visible">
+                          <ul className="space-y-1 max-h-64 overflow-auto pr-1">
                             {subcategories.map((sub) => {
-                              const wordCount = sub.name.split(" ").length;
-                              const isShortName = wordCount <= 2;
                               const hasNestedCategories = categories.some(
                                 (c) => c.parentId === sub.id
                               );
 
                               return (
-                                <li
-                                  key={sub.id}
-                                  className={`xl:flex-shrink-0 ${
-                                    isShortName
-                                      ? "xl:inline-block"
-                                      : "xl:block xl:w-full"
-                                  }`}
-                                >
+                                <li key={sub.id}>
                                   <Link
                                     href={{
                                       pathname: "/products",
@@ -274,25 +265,13 @@ const ResponsiveNavbar = memo(function ResponsiveNavbar() {
                                     onMouseEnter={() =>
                                       setHoveredSubcategory(sub)
                                     }
-                                    className={`flex items-center justify-between px-[clamp(0.75rem,1.5vw,1rem)] py-2 rounded-md text-sm transition-all duration-200 ${
-                                      isShortName
-                                        ? "xl:whitespace-nowrap"
-                                        : "xl:whitespace-normal"
-                                    } ${
+                                    className={`flex items-center justify-between px-[clamp(0.75rem,1.5vw,1rem)] py-1 rounded-md text-sm  transition-all duration-200 ${
                                       hoveredSubcategory?.id === sub.id
                                         ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
                                         : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                     }`}
                                   >
-                                    <span
-                                      className={
-                                        isShortName
-                                          ? "xl:whitespace-nowrap"
-                                          : "xl:whitespace-normal"
-                                      }
-                                    >
-                                      {sub.name}
-                                    </span>
+                                    <span>{sub.name}</span>
                                     {hasNestedCategories && (
                                       <svg
                                         className="w-3 h-3 text-neutral-400 dark:text-neutral-500 flex-shrink-0 ml-1"
@@ -338,30 +317,16 @@ const ResponsiveNavbar = memo(function ResponsiveNavbar() {
                               {hoveredSubcategory.name}
                             </span>
                           </div> */}
-                          <ul className="space-y-1 max-h-64 overflow-auto pr-1 xl:space-y-0 xl:space-x-2 xl:flex xl:flex-wrap xl:max-h-none xl:overflow-visible">
+                          <ul className="space-y-1 max-h-64 overflow-auto pr-1">
                             {nestedCategories.map((nested) => {
-                              const wordCount = nested.name.split(" ").length;
-                              const isShortName = wordCount <= 2;
-
                               return (
-                                <li
-                                  key={nested.id}
-                                  className={`xl:flex-shrink-0 ${
-                                    isShortName
-                                      ? "xl:inline-block"
-                                      : "xl:block xl:w-full"
-                                  }`}
-                                >
+                                <li key={nested.id}>
                                   <Link
                                     href={{
                                       pathname: "/products",
                                       query: { nestedCategoryId: nested.id },
                                     }}
-                                    className={`block px-[clamp(0.75rem,1.5vw,1rem)] py-2 rounded-md text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-200 ${
-                                      isShortName
-                                        ? "xl:whitespace-nowrap"
-                                        : "xl:whitespace-normal"
-                                    }`}
+                                    className="block px-[clamp(0.75rem,1.5vw,1rem)] py-2 rounded-md text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-200"
                                   >
                                     {nested.name}
                                   </Link>
