@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, Trash2, Package } from "lucide-react";
+import {
+  X,
+  Upload,
+  Trash2,
+  Package,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import LazyImage from "../ui/lazy-image";
 import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
 
@@ -22,6 +29,9 @@ export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState(new Set());
+  const categoryDropdownRef = useRef(null);
 
   useEffect(() => {
     if (mode === "update" && product) {
@@ -49,6 +59,26 @@ export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
       });
     }
   }, [mode, product]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(event.target)
+      ) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+
+    if (isCategoryDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isCategoryDropdownOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -102,7 +132,123 @@ export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
     });
   };
 
-  const isFormValid = formData.name.trim() && formData.composition.trim();
+  const isFormValid = formData.name.trim() && formData.categoryId;
+
+  // Build category hierarchy
+  const categories = categoriesData?.data || [];
+  const rootCategories = useMemo(
+    () => categories.filter((cat) => !cat.parentId),
+    [categories]
+  );
+
+  // Get category path (e.g., "Fashion → Knit → Cotton")
+  const getCategoryPath = (categoryId) => {
+    const category = categories.find((cat) => cat.id === categoryId);
+    if (!category) return "";
+
+    const path = [category.name];
+    let current = category;
+
+    while (current.parentId) {
+      const parent = categories.find((cat) => cat.id === current.parentId);
+      if (parent) {
+        path.unshift(parent.name);
+        current = parent;
+      } else {
+        break;
+      }
+    }
+
+    return path.join(" → ");
+  };
+
+  // Get subcategories for a given category
+  const getSubcategories = (categoryId) => {
+    return categories.filter((cat) => cat.parentId === categoryId);
+  };
+
+  // Toggle category expansion
+  const toggleCategoryExpansion = (categoryId) => {
+    setExpandedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      return newSet;
+    });
+  };
+
+  // Get selected category display name
+  const getSelectedCategoryDisplay = () => {
+    if (!formData.categoryId) return "Select a category";
+    return getCategoryPath(formData.categoryId);
+  };
+
+  // Recursive component to render category tree
+  const CategoryTreeItem = ({ category, level = 0 }) => {
+    const subcategories = getSubcategories(category.id);
+    const isExpanded = expandedCategories.has(category.id);
+    const isSelected = formData.categoryId === category.id;
+    const hasChildren = subcategories.length > 0;
+
+    return (
+      <div className="select-none">
+        <div
+          className={`flex items-center justify-between py-2 px-3 rounded-md cursor-pointer transition-colors ${
+            isSelected
+              ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+              : "hover:bg-gray-100 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300"
+          }`}
+          style={{ paddingLeft: `${12 + level * 20}px` }}
+          onClick={() => {
+            setFormData({ ...formData, categoryId: category.id });
+            setIsCategoryDropdownOpen(false);
+          }}
+        >
+          <div className="flex items-center space-x-2">
+            {hasChildren ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleCategoryExpansion(category.id);
+                }}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-neutral-600 rounded"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+            ) : (
+              <div className="w-6" />
+            )}
+            <span className="text-sm font-medium">{category.name}</span>
+            {isSelected && (
+              <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
+                Selected
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Subcategories */}
+        {hasChildren && isExpanded && (
+          <div className="ml-4">
+            {subcategories.map((subcategory) => (
+              <CategoryTreeItem
+                key={subcategory.id}
+                category={subcategory}
+                level={level + 1}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -168,9 +314,78 @@ export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
                   />
                 </div>
 
+                {/* Category Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+
+                  {/* Custom Dropdown */}
+                  <div className="relative" ref={categoryDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
+                      }
+                      disabled={isSubmitting || categoriesLoading}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-left flex items-center justify-between disabled:opacity-50"
+                    >
+                      <span
+                        className={
+                          formData.categoryId
+                            ? "text-gray-900 dark:text-white"
+                            : "text-gray-500"
+                        }
+                      >
+                        {getSelectedCategoryDisplay()}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform ${
+                          isCategoryDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isCategoryDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                        {categoriesLoading ? (
+                          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                            Loading categories...
+                          </div>
+                        ) : rootCategories.length === 0 ? (
+                          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                            No categories available
+                          </div>
+                        ) : (
+                          <div className="py-2">
+                            {rootCategories.map((category) => (
+                              <CategoryTreeItem
+                                key={category.id}
+                                category={category}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Category Path Display */}
+                  {formData.categoryId && (
+                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        Selected: {getCategoryPath(formData.categoryId)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Composition */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"></label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Composition
+                  </label>
                   <input
                     type="text"
                     value={formData.composition}
@@ -214,28 +429,6 @@ export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     disabled={isSubmitting}
                   />
-                </div>
-
-                {/* Category Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={formData.categoryId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, categoryId: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={isSubmitting || categoriesLoading}
-                  >
-                    <option value="">Select a category</option>
-                    {categoriesData?.data?.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
                 </div>
 
                 {/* Image Upload */}

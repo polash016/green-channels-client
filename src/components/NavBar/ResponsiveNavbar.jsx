@@ -125,7 +125,7 @@ const ResponsiveNavbar = memo(function ResponsiveNavbar() {
       className="relative z-20 mr-4 flex flex-col items-center space-y-2 px-2 py-2"
     >
       <img
-        src="/logo2.png"
+        src="/logo.png"
         alt="Green Channels Logo"
         width={120}
         height={140}

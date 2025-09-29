@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useGetCSRsQuery } from "@/redux/api/csrApi";
 
 export default function CSRPage() {
-  const { data: csrData, isLoading, error } = useGetCSRsQuery();
+  const { data: csrData, isLoading, error } = useGetCSRsQuery({ limit: 1000 });
 
   // Fallback certificates in case API fails or returns empty data
   const fallbackCertificates = [

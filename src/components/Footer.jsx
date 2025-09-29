@@ -52,7 +52,7 @@ export function Footer() {
           >
             <div className="flex items-center space-x-3">
               <img
-                src="/logo1.png"
+                src="/logo.png"
                 alt="Green Channels Logo"
                 width={160}
                 height={200}

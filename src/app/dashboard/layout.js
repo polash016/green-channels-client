@@ -2,7 +2,6 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import {
-  LogOut,
   Home,
   Package,
   Users,
@@ -10,31 +9,13 @@ import {
   FolderOpen,
   Award,
 } from "lucide-react";
-import { useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { logout } from "@/lib/auth";
+import UserMenu from "@/components/Dashboard/UserMenu";
 import Link from "next/link";
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-
-    try {
-      // Call logout function from auth utility
-      logout();
-      // The logout function will handle the redirect
-    } catch (error) {
-      console.error("Logout error:", error);
-      // Fallback redirect
-      router.push("/login");
-    } finally {
-      setLoggingOut(false);
-    }
-  };
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -79,20 +60,13 @@ export default function DashboardLayout({ children }) {
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {/* Top Bar */}
-          <header className="bg-white dark:bg-neutral-800 shadow-sm border-b border-gray-200">
+          <header className="bg-white dark:bg-neutral-800 shadow-sm border-b border-gray-200 dark:border-neutral-700">
             <div className="flex items-center justify-between px-6 py-4">
               <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
                 {navigation.find((item) => item.href === pathname)?.name ||
                   "Dashboard"}
               </h1>
-              <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-60"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>{loggingOut ? "Logging out..." : "Logout"}</span>
-              </button>
+              <UserMenu />
             </div>
           </header>
 
