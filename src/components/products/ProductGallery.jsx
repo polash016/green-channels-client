@@ -4,6 +4,7 @@ import { useGetAllProductsQuery } from "@/redux/api/productsApi";
 import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
 import { useState, useEffect, useCallback, memo, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
 import {
   setCategory,
@@ -44,6 +45,35 @@ export const ProductGallery = memo(function ProductGallery() {
   // Get categories for filtering
   const { data: categoriesData, isLoading: categoriesLoading } =
     useGetCategoriesQuery({ limit: 1000 });
+
+  // Get subcategories and nested categories for the selected main category
+  const mainCategorySubcategories = useMemo(() => {
+    if (!selectedCategory || !categoriesData?.data) return [];
+
+    const categories = categoriesData.data;
+    const mainCategory = categories.find((cat) => cat.id === selectedCategory);
+    if (!mainCategory) return [];
+
+    // Get direct subcategories
+    const subcategories = categories.filter(
+      (cat) => cat.parentId === selectedCategory
+    );
+
+    // Get nested categories (children of subcategories)
+    const nestedCategories = categories.filter((cat) =>
+      subcategories.some((sub) => sub.id === cat.parentId)
+    );
+
+    return { subcategories, nestedCategories };
+  }, [selectedCategory, categoriesData?.data]);
+
+  // Get nested categories for the selected subcategory
+  const subcategoryNestedCategories = useMemo(() => {
+    if (!subcategoryId || !categoriesData?.data) return [];
+
+    const categories = categoriesData.data;
+    return categories.filter((cat) => cat.parentId === subcategoryId);
+  }, [subcategoryId, categoriesData?.data]);
 
   // Build breadcrumb path based on current filters
   const breadcrumbPath = useMemo(() => {
@@ -115,17 +145,14 @@ export const ProductGallery = memo(function ProductGallery() {
       params.searchTerm = debouncedSearchTerm;
     }
 
-    // Only add hierarchy filters if present
+    // Only fetch products for nested categories, not for main or subcategories
     if (nestedCategoryId) {
       params.nestedCategoryId = nestedCategoryId;
-    } else if (subcategoryId) {
-      params.subcategoryId = subcategoryId;
-    } else if (selectedCategory) {
-      params.categoryId = selectedCategory;
     }
+    // Don't add categoryId or subcategoryId - we'll show navigation instead
 
     return params;
-  }, [debouncedSearchTerm, nestedCategoryId, subcategoryId, selectedCategory]);
+  }, [debouncedSearchTerm, nestedCategoryId]);
 
   const {
     data: productsResponse,
@@ -284,19 +311,33 @@ export const ProductGallery = memo(function ProductGallery() {
                 {breadcrumbPath.length > 0 ? (
                   breadcrumbPath.map((item, index) => (
                     <div key={item.id} className="flex items-center">
-                      <button
-                        onClick={() =>
-                          handleBreadcrumbClick(item.id, item.level)
-                        }
-                        className={`transition-colors duration-200 hover:text-green-400 ${
-                          index === breadcrumbPath.length - 1
-                            ? "text-white font-medium"
-                            : "text-neutral-300 hover:text-green-400"
-                        }`}
-                        title={`Go to ${item.name}`}
-                      >
-                        {item.name}
-                      </button>
+                      {item.level === 0 ? (
+                        // Main category - not clickable
+                        <span
+                          className={`${
+                            index === breadcrumbPath.length - 1
+                              ? "text-white font-medium"
+                              : "text-neutral-300"
+                          }`}
+                        >
+                          {item.name}
+                        </span>
+                      ) : (
+                        // Sub and nested categories - clickable
+                        <button
+                          onClick={() =>
+                            handleBreadcrumbClick(item.id, item.level)
+                          }
+                          className={`transition-colors duration-200 hover:text-green-400 ${
+                            index === breadcrumbPath.length - 1
+                              ? "text-white font-medium"
+                              : "text-neutral-300 hover:text-green-400"
+                          }`}
+                          title={`Go to ${item.name}`}
+                        >
+                          {item.name}
+                        </button>
+                      )}
                       {index < breadcrumbPath.length - 1 && (
                         <ChevronRight className="mx-3 text-green-400 w-4 h-4" />
                       )}
@@ -468,15 +509,187 @@ export const ProductGallery = memo(function ProductGallery() {
           </div>
         </div>
 
-        {transformedProducts.length > 0 ? (
+        {/* Show subcategory navigation for main categories, nested categories for subcategories, products for nested categories */}
+        {selectedCategory && !subcategoryId && !nestedCategoryId ? (
+          // Main category selected - show subcategory navigation
+          <div className="text-center pb-16 px-4">
+            <div className="max-w-4xl mx-auto">
+              <h3 className="text-2xl font-bold text-white mb-8">
+                Browse{" "}
+                {
+                  categoriesData?.data?.find(
+                    (cat) => cat.id === selectedCategory
+                  )?.name
+                }
+              </h3>
+
+              {/* Dynamic Category Tree */}
+              {mainCategorySubcategories?.subcategories?.length > 0 && (
+                <div className="space-y-6">
+                  {mainCategorySubcategories.subcategories.map(
+                    (subcategory) => {
+                      const nestedUnderThisSub =
+                        mainCategorySubcategories?.nestedCategories?.filter(
+                          (nested) => nested.parentId === subcategory.id
+                        ) || [];
+
+                      return (
+                        <div
+                          key={subcategory.id}
+                          className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden hover:border-green-500 transition-all duration-200"
+                        >
+                          {/* Subcategory Header */}
+                          <div className="p-6 border-b border-neutral-700">
+                            <Link
+                              href={`/products?subcategoryId=${subcategory.id}`}
+                              className="group block"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center group-hover:bg-green-500 transition-colors">
+                                    <span className="text-white font-semibold text-sm">
+                                      {subcategory.name.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <h5 className="text-xl font-semibold text-white group-hover:text-green-400 transition-colors">
+                                      {subcategory.name}
+                                    </h5>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xs text-neutral-500 bg-neutral-700 px-2 py-1 rounded-full">
+                                    View
+                                  </span>
+                                  <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-green-400 transition-colors" />
+                                </div>
+                              </div>
+                            </Link>
+                          </div>
+
+                          {/* Nested Categories */}
+                          {nestedUnderThisSub.length > 0 && (
+                            <div className="p-6 pt-0">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                {nestedUnderThisSub.map((nestedCategory) => (
+                                  <Link
+                                    key={nestedCategory.id}
+                                    href={`/products?nestedCategoryId=${nestedCategory.id}`}
+                                    className="group/nested p-4 bg-neutral-900 hover:bg-neutral-700 rounded-lg border border-neutral-600 hover:border-purple-500 transition-all duration-200 hover:scale-105"
+                                  >
+                                    <div className="flex items-center space-x-3">
+                                      <div className="w-8 h-8 bg-purple-600 rounded-md flex items-center justify-center group-hover/nested:bg-purple-500 transition-colors">
+                                        <span className="text-white font-medium text-xs">
+                                          {nestedCategory.name
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h6 className="text-sm font-medium text-white group-hover/nested:text-purple-400 transition-colors truncate">
+                                          {nestedCategory.name}
+                                        </h6>
+                                      </div>
+                                    </div>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+
+              {mainCategorySubcategories?.subcategories?.length === 0 &&
+                mainCategorySubcategories?.nestedCategories?.length === 0 && (
+                  <div className="text-neutral-400">
+                    <p>No subcategories available for this category.</p>
+                  </div>
+                )}
+            </div>
+          </div>
+        ) : subcategoryId && !nestedCategoryId ? (
+          // Subcategory selected - show nested categories
+          <div className="text-center pb-16 px-4">
+            <div className="max-w-6xl mx-auto">
+              <h3 className="text-2xl font-bold text-white mb-8">
+                {
+                  categoriesData?.data?.find((cat) => cat.id === subcategoryId)
+                    ?.name
+                }
+              </h3>
+
+              {subcategoryNestedCategories?.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {subcategoryNestedCategories.map((nestedCategory) => (
+                    <Link
+                      key={nestedCategory.id}
+                      href={`/products?nestedCategoryId=${nestedCategory.id}`}
+                      className="group bg-neutral-800 hover:bg-neutral-700 rounded-2xl border border-neutral-700 hover:border-purple-500 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden"
+                    >
+                      <div className="p-8 text-center">
+                        {/* Icon */}
+                        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:from-purple-400 group-hover:to-purple-600 transition-all duration-300 group-hover:scale-110">
+                          <span className="text-white font-bold text-xl">
+                            {nestedCategory.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* Title */}
+                        <h4 className="text-lg font-semibold text-white group-hover:text-purple-400 transition-colors mb-2">
+                          {nestedCategory.name}
+                        </h4>
+
+                        {/* Description */}
+                        <p className="text-sm text-neutral-400 group-hover:text-neutral-300 transition-colors">
+                          View products in this category
+                        </p>
+
+                        {/* Arrow */}
+                        <div className="mt-4 flex justify-center">
+                          <div className="w-8 h-8 bg-neutral-700 group-hover:bg-purple-600 rounded-full flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                            <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-neutral-800 rounded-2xl border border-neutral-700 p-12">
+                  <div className="w-16 h-16 bg-neutral-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Package className="w-8 h-8 text-neutral-500" />
+                  </div>
+                  <h4 className="text-xl font-semibold text-white mb-2">
+                    No Nested Categories
+                  </h4>
+                  <p className="text-neutral-400 mb-6">
+                    This subcategory doesn't have any nested categories yet.
+                  </p>
+                  <Link
+                    href={`/products?subcategoryId=${subcategoryId}`}
+                    className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  >
+                    View All Products
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : transformedProducts.length > 0 ? (
+          // Sub/Nested category selected - show products
           <>
             <FocusCards cards={transformedProducts} />
           </>
         ) : (
+          // No products or no category selected
           <div className="text-center pb-16 px-4">
             <div className="max-w-md mx-auto">
               {/* Smart messaging based on context */}
-              {searchTerm || selectedCategory ? (
+              {searchTerm || nestedCategoryId ? (
                 <>
                   <h3 className="text-2xl font-bold text-white mb-3">
                     No products match your search
