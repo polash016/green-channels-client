@@ -15,7 +15,7 @@ import {
   setFiltersFromUrl,
 } from "@/redux/slices/productFilterSlice";
 import Image from "next/image";
-import { Search, Filter, ChevronRight, Home } from "lucide-react";
+import { Search, Filter, ChevronRight, Home, Package } from "lucide-react";
 
 export const ProductGallery = memo(function ProductGallery() {
   const searchParams = useSearchParams();
@@ -311,33 +311,19 @@ export const ProductGallery = memo(function ProductGallery() {
                 {breadcrumbPath.length > 0 ? (
                   breadcrumbPath.map((item, index) => (
                     <div key={item.id} className="flex items-center">
-                      {item.level === 0 ? (
-                        // Main category - not clickable
-                        <span
-                          className={`${
-                            index === breadcrumbPath.length - 1
-                              ? "text-white font-medium"
-                              : "text-neutral-300"
-                          }`}
-                        >
-                          {item.name}
-                        </span>
-                      ) : (
-                        // Sub and nested categories - clickable
-                        <button
-                          onClick={() =>
-                            handleBreadcrumbClick(item.id, item.level)
-                          }
-                          className={`transition-colors duration-200 hover:text-green-400 ${
-                            index === breadcrumbPath.length - 1
-                              ? "text-white font-medium"
-                              : "text-neutral-300 hover:text-green-400"
-                          }`}
-                          title={`Go to ${item.name}`}
-                        >
-                          {item.name}
-                        </button>
-                      )}
+                      <button
+                        onClick={() =>
+                          handleBreadcrumbClick(item.id, item.level)
+                        }
+                        className={`transition-colors duration-200 hover:text-green-400 ${
+                          index === breadcrumbPath.length - 1
+                            ? "text-white font-medium"
+                            : "text-neutral-300 hover:text-green-400"
+                        }`}
+                        title={`Go to ${item.name}`}
+                      >
+                        {item.name}
+                      </button>
                       {index < breadcrumbPath.length - 1 && (
                         <ChevronRight className="mx-3 text-green-400 w-4 h-4" />
                       )}
@@ -664,17 +650,17 @@ export const ProductGallery = memo(function ProductGallery() {
                     <Package className="w-8 h-8 text-neutral-500" />
                   </div>
                   <h4 className="text-xl font-semibold text-white mb-2">
-                    No Nested Categories
+                    No Categories
                   </h4>
                   <p className="text-neutral-400 mb-6">
                     This subcategory doesn't have any nested categories yet.
                   </p>
-                  <Link
-                    href={`/products?subcategoryId=${subcategoryId}`}
+                  {/* <Link
+                    href={`/products?subcategoryId=${mainCategorySubcategories}`}
                     className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105"
                   >
                     View All Products
-                  </Link>
+                  </Link> */}
                 </div>
               )}
             </div>
