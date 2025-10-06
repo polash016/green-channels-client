@@ -20,7 +20,7 @@ export const Card = React.memo(({ card, index, hovered, setHovered }) => (
         src={card.src}
         alt={card.title}
         fill
-        className="object-cover"
+        className="contain" //object-cover
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
       />
       <div
