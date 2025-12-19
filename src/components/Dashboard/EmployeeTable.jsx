@@ -1,45 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { motion } from "framer-motion";
 import { Search, Plus, Edit, Trash2, Eye, User } from "lucide-react";
 import { EmployeeModal } from "./EmployeeModal";
 import LazyImage from "../ui/lazy-image";
-import {
-  useGetAllEmployeesQuery,
-  useCreateEmployeeMutation,
-  useUpdateEmployeeMutation,
-  useDeleteEmployeeMutation,
-} from "../../redux/api/employeeApi";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import {
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+} from "@/lib/actions";
 
-export function EmployeeTable() {
+export function EmployeeTable({ initialEmployees = [] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
-  // API hooks
-  const {
-    data: employees,
-    isLoading,
-    error,
-    refetch,
-  } = useGetAllEmployeesQuery();
-  const [createEmployee] = useCreateEmployeeMutation();
-  const [updateEmployee] = useUpdateEmployeeMutation();
-  const [deleteEmployee] = useDeleteEmployeeMutation();
-
   // Filter employees based on search term
-  const filteredEmployees =
-    employees?.data?.filter(
+  const filteredEmployees = useMemo(() => {
+    if (!searchTerm) return initialEmployees;
+    
+    const lowerTerm = searchTerm.toLowerCase();
+    return initialEmployees.filter(
       (employee) =>
-        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.name.toLowerCase().includes(lowerTerm) ||
+        employee.designation.toLowerCase().includes(lowerTerm) ||
         (employee.description &&
-          employee.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    ) || [];
+          employee.description.toLowerCase().includes(lowerTerm))
+    );
+  }, [initialEmployees, searchTerm]);
 
   const handleCreate = async (formData) => {
     try {
@@ -61,26 +57,19 @@ export function EmployeeTable() {
         formDataToSend.append("file", formData.image);
       }
 
-      const res = createEmployee(formDataToSend).unwrap();
-      toast.promise(res, {
-        loading: "Creating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsCreateModalOpen(false);
-            refetch();
-            return res?.message || "Employee created successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => {
-          return error?.message || "Something went wrong";
-        },
+      startTransition(async () => {
+        const res = await createEmployee(formDataToSend);
+        if (res.success) {
+          toast.success("Employee created successfully");
+          setIsCreateModalOpen(false);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to create employee");
+        }
       });
     } catch (error) {
       console.error("Create error:", error);
       toast.error("Failed to create employee");
-      throw error;
     }
   };
 
@@ -104,42 +93,40 @@ export function EmployeeTable() {
         formDataToSend.append("file", formData.image);
       }
 
-      const res = updateEmployee({
-        data: formDataToSend,
-        id: selectedEmployee.id,
-      }).unwrap();
-
-      toast.promise(res, {
-        loading: "Updating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsUpdateModalOpen(false);
-            setSelectedEmployee(null);
-            return res?.message || "Employee updated successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => {
-          return error?.message || "Something went wrong";
-        },
+      startTransition(async () => {
+        const res = await updateEmployee(selectedEmployee.id, formDataToSend);
+        if (res.success) {
+          toast.success("Employee updated successfully");
+          setIsUpdateModalOpen(false);
+          setSelectedEmployee(null);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to update employee");
+        }
       });
     } catch (error) {
       console.error("Update error:", error);
       toast.error("Failed to update employee");
-      throw error;
     }
   };
 
   const handleDelete = async (id) => {
-    try {
-      await deleteEmployee(id).unwrap();
-      toast.success("Employee deleted successfully!");
-      refetch();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete employee");
-    }
+    if (!confirm("Are you sure you want to delete this employee?")) return;
+    
+    startTransition(async () => {
+      try {
+        const res = await deleteEmployee(id);
+        if (res.success) {
+          toast.success("Employee deleted successfully!");
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to delete employee");
+        }
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error("Failed to delete employee");
+      }
+    });
   };
 
   const openUpdateModal = (employee) => {
@@ -161,36 +148,6 @@ export function EmployeeTable() {
       minute: "2-digit",
     });
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Eye className="w-8 h-8 text-red-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Error loading employees
-        </h3>
-        <p className="text-gray-500 dark:text-gray-400">
-          Failed to load employee data. Please try again.
-        </p>
-        <button
-          onClick={() => refetch()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

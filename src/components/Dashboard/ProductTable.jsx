@@ -1,20 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo, useTransition } from "react";
 import { motion } from "framer-motion";
 import { Search, Plus, Edit, Trash2, Eye, Package } from "lucide-react";
 import { ProductModal } from "./ProductModal";
 import LazyImage from "../ui/lazy-image";
-import {
-  useGetAllProductsQuery,
-  useCreateProductMutation,
-  useUpdateProductMutation,
-  useDeleteProductMutation,
-  useDeleteProductImageMutation,
-} from "../../redux/api/productsApi";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { 
+  createProduct, 
+  updateProduct, 
+  deleteProduct, 
+  deleteProductImage 
+} from "@/lib/actions";
+import { getCategories } from "@/lib/api";
 
-export function ProductTable() {
+export function ProductTable({ initialProducts = [] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -23,64 +27,60 @@ export function ProductTable() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [deletingImageIndex, setDeletingImageIndex] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-  // Debounced search
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-
+  // Fetch categories for the modal
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to first page when searching
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // API hooks with pagination and search
-  const queryParams = {
-    page: currentPage,
-    limit: pageSize,
-  };
-
-  // Only add searchTerm if it exists and is not empty
-  if (debouncedSearchTerm && debouncedSearchTerm.trim()) {
-    queryParams.searchTerm = debouncedSearchTerm;
-  }
-
-  console.log("Frontend query params:", queryParams);
-
-  const {
-    data: productsResponse,
-    isLoading,
-    error,
-    refetch,
-  } = useGetAllProductsQuery(queryParams);
-
-  const [createProduct] = useCreateProductMutation();
-  const [updateProduct] = useUpdateProductMutation();
-  const [deleteProduct] = useDeleteProductMutation();
-  const [deleteProductImage] = useDeleteProductImageMutation();
-
-  // Extract products and pagination info
-  const products = productsResponse?.data || [];
-  const pagination = productsResponse?.meta || { page: 1, limit: 10, total: 0 };
-  const totalPages = Math.ceil(pagination.total / pagination.limit);
-
-  // Pagination handlers
-  const handlePageChange = useCallback((page) => {
-    setCurrentPage(page);
+    let mounted = true;
+    
+    async function fetchCategories() {
+      try {
+        const data = await getCategories({ limit: 1000 });
+        if (mounted) {
+          setCategories(data?.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      } finally {
+        if (mounted) {
+          setCategoriesLoading(false);
+        }
+      }
+    }
+    
+    fetchCategories();
+    return () => { mounted = false; };
   }, []);
 
-  const handlePageSizeChange = useCallback((newPageSize) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1); // Reset to first page when changing page size
-  }, []);
+  // Filter products based on search term
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm) return initialProducts;
+    
+    const lowerTerm = searchTerm.toLowerCase();
+    return initialProducts.filter(product => 
+      product.name?.toLowerCase().includes(lowerTerm) ||
+      product.description?.toLowerCase().includes(lowerTerm) ||
+      product.material?.toLowerCase().includes(lowerTerm) ||
+      product.composition?.toLowerCase().includes(lowerTerm)
+    );
+  }, [initialProducts, searchTerm]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredProducts.length / pageSize);
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(startIndex, startIndex + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
+
+  // Reset to first page when filtering
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
 
   const handleCreate = async (formData) => {
     try {
       const formDataToSend = new FormData();
-
-      console.log("formData", formData);
 
       // Add product data
       const productData = {
@@ -103,14 +103,19 @@ export function ProductTable() {
         });
       }
 
-      const res = await createProduct(formDataToSend).unwrap();
-      toast.success("Product created successfully!");
-      setIsCreateModalOpen(false);
-      refetch();
+      startTransition(async () => {
+        const result = await createProduct(formDataToSend);
+        if (result.success) {
+          toast.success("Product created successfully!");
+          setIsCreateModalOpen(false);
+          router.refresh();
+        } else {
+          toast.error(`Failed to create product: ${result.error}`);
+        }
+      });
     } catch (error) {
       console.error("Create error:", error);
       toast.error("Failed to create product");
-      throw error;
     }
   };
 
@@ -139,31 +144,39 @@ export function ProductTable() {
         });
       }
 
-      await updateProduct({
-        id: selectedProduct.id,
-        data: formDataToSend,
-      }).unwrap();
-
-      toast.success("Product updated successfully!");
-      setIsUpdateModalOpen(false);
-      setSelectedProduct(null);
-      refetch();
+      startTransition(async () => {
+        const result = await updateProduct(selectedProduct.id, formDataToSend);
+        if (result.success) {
+          toast.success("Product updated successfully!");
+          setIsUpdateModalOpen(false);
+          setSelectedProduct(null);
+          router.refresh();
+        } else {
+          toast.error(`Failed to update product: ${result.error}`);
+        }
+      });
     } catch (error) {
       console.error("Update error:", error);
       toast.error("Failed to update product");
-      throw error;
     }
   };
 
   const handleDelete = async (id) => {
-    try {
-      await deleteProduct(id).unwrap();
-      toast.success("Product deleted successfully!");
-      refetch();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete product");
-    }
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    
+    startTransition(async () => {
+      const result = await deleteProduct(id);
+      if (result.success) {
+        toast.success("Product deleted successfully!");
+        router.refresh();
+      } else {
+        toast.error("Failed to delete product");
+      }
+    });
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   const openUpdateModal = (product) => {
@@ -201,19 +214,20 @@ export function ProductTable() {
                     toast.dismiss(t);
                     setDeletingImageIndex(imageIndex);
                     try {
-                      await deleteProductImage({
-                        productId,
-                        imageIndex,
-                      }).unwrap();
-                      toast.success("Image deleted successfully!");
-                      refetch();
-                      // Update the selected product to reflect the change
-                      if (selectedProduct && selectedProduct.id === productId) {
-                        const updatedProduct = { ...selectedProduct };
-                        updatedProduct.imgUrls = updatedProduct.imgUrls.filter(
-                          (_, index) => index !== imageIndex
-                        );
-                        setSelectedProduct(updatedProduct);
+                      const result = await deleteProductImage(productId, imageIndex);
+                      if (result.success) {
+                        toast.success("Image deleted successfully!");
+                        router.refresh();
+                        // Update the selected product to reflect the change locally
+                        if (selectedProduct && selectedProduct.id === productId) {
+                          const updatedProduct = { ...selectedProduct };
+                          updatedProduct.imgUrls = updatedProduct.imgUrls.filter(
+                            (_, index) => index !== imageIndex
+                          );
+                          setSelectedProduct(updatedProduct);
+                        }
+                      } else {
+                        toast.error("Failed to delete image");
                       }
                     } catch (error) {
                       console.error("Delete image error:", error);
@@ -264,38 +278,6 @@ export function ProductTable() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  console.log("products", products);
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Eye className="w-8 h-8 text-red-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Error loading products
-        </h3>
-        <p className="text-gray-500 dark:text-gray-400">
-          Failed to load product data. Please try again.
-        </p>
-        <button
-          onClick={() => refetch()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -304,7 +286,7 @@ export function ProductTable() {
         </h2>
         <div className="flex items-center space-x-4">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            Total: {pagination.total} products
+            Total: {filteredProducts.length} products
           </div>
           <div className="flex items-center space-x-2">
             <label className="text-sm text-gray-500 dark:text-gray-400">
@@ -312,7 +294,7 @@ export function ProductTable() {
             </label>
             <select
               value={pageSize}
-              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              onChange={(e) => setPageSize(Number(e.target.value))}
               className="px-2 py-1 border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-700 text-gray-900 dark:text-white text-sm"
             >
               <option value={5}>5</option>
@@ -379,12 +361,12 @@ export function ProductTable() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700">
-              {products.map((product, index) => (
+              {paginatedProducts.map((product, index) => (
                 <motion.tr
                   key={product.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
+                  transition={{ delay: index * 0.05 }}
                   className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
                 >
                   {/* Image Column */}
@@ -487,8 +469,8 @@ export function ProductTable() {
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <span>
               Showing {(currentPage - 1) * pageSize + 1} to{" "}
-              {Math.min(currentPage * pageSize, pagination.total)} of{" "}
-              {pagination.total} results
+              {Math.min(currentPage * pageSize, filteredProducts.length)} of{" "}
+              {filteredProducts.length} results
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -540,7 +522,7 @@ export function ProductTable() {
       )}
 
       {/* Empty State */}
-      {products.length === 0 && (
+      {filteredProducts.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -593,6 +575,8 @@ export function ProductTable() {
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleCreate}
           mode="create"
+          categories={categories}
+          categoriesLoading={categoriesLoading}
         />
       )}
 
@@ -606,6 +590,8 @@ export function ProductTable() {
           onSubmit={handleUpdate}
           mode="update"
           product={selectedProduct}
+          categories={categories}
+          categoriesLoading={categoriesLoading}
         />
       )}
 

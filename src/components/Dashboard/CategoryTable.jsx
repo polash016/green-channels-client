@@ -1,20 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { motion } from "framer-motion";
 import { Search, Plus, Edit, Trash2, Eye } from "lucide-react";
 import { CategoryModal } from "./CategoryModal";
 import { SubcategoryModal } from "./SubcategoryModal";
 import { NestedCategoryModal } from "./NestedCategoryModal";
-import {
-  useGetCategoriesQuery,
-  useCreateCategoryMutation,
-  useUpdateCategoryMutation,
-  useDeleteCategoryMutation,
-} from "../../redux/api/categoryApi";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import {
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/lib/actions";
 
-export function CategoryTable() {
+export function CategoryTable({ initialCategories = [] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -24,25 +27,16 @@ export function CategoryTable() {
   const [parentForSub, setParentForSub] = useState(null);
   const [parentForNested, setParentForNested] = useState(null);
 
-  // API hooks
-  const {
-    data: categories,
-    isLoading,
-    error,
-    refetch,
-  } = useGetCategoriesQuery({
-    searchTerm,
-    page: 1,
-    limit: 100,
-  });
+  // Sort and filter categories
+  const filteredCategories = useMemo(() => {
+    let result = initialCategories;
+    
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(c => c.name.toLowerCase().includes(lower));
+    }
 
-  const [createCategory] = useCreateCategoryMutation();
-  const [updateCategory] = useUpdateCategoryMutation();
-  const [deleteCategory] = useDeleteCategoryMutation();
-
-  // Sort categories based on sort order (backend handles search filtering)
-  const filteredCategories =
-    categories?.data?.slice()?.sort((a, b) => {
+    return result.slice().sort((a, b) => {
       // First sort by parentId (root categories first)
       if (!a.parentId && b.parentId) return -1;
       if (a.parentId && !b.parentId) return 1;
@@ -55,127 +49,111 @@ export function CategoryTable() {
         return (a.sortOrder || 0) - (b.sortOrder || 0);
       }
       return 0;
-    }) || [];
+    });
+  }, [initialCategories, searchTerm]);
 
   const handleCreate = async (formData) => {
-    try {
-      const res = await createCategory(formData).unwrap();
-      toast.promise(Promise.resolve(res), {
-        loading: "Creating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsCreateModalOpen(false);
-            refetch();
-            return res?.message || "Category created successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => {
-          return error?.message || "Something went wrong";
-        },
-      });
-    } catch (error) {
-      console.error("Create error:", error);
-      toast.error("Failed to create category");
-      throw error;
-    }
+    startTransition(async () => {
+      try {
+        const res = await createCategory(formData);
+        if (res.success) {
+          toast.success("Category created successfully");
+          setIsCreateModalOpen(false);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to create category");
+        }
+      } catch (error) {
+        console.error("Create error:", error);
+        toast.error("Failed to create category");
+      }
+    });
   };
 
   const handleCreateSub = async (formData) => {
-    try {
-      const body = JSON.parse(formData.data);
-      const payload = { ...body, parentId: parentForSub?.id };
-      const res = await createCategory({
-        data: JSON.stringify(payload),
-      }).unwrap();
-      toast.promise(Promise.resolve(res), {
-        loading: "Creating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsSubCreateOpen(false);
-            setParentForSub(null);
-            refetch();
-            return res?.message || "Subcategory created successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => error?.message || "Something went wrong",
-      });
-    } catch (error) {
-      console.error("Create subcategory error:", error);
-      toast.error("Failed to create subcategory");
-      throw error;
-    }
+    startTransition(async () => {
+      try {
+        const body = JSON.parse(formData.data);
+        const payload = { ...body, parentId: parentForSub?.id };
+        const res = await createCategory({
+          data: JSON.stringify(payload),
+        });
+        
+        if (res.success) {
+          toast.success("Subcategory created successfully");
+          setIsSubCreateOpen(false);
+          setParentForSub(null);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to create subcategory");
+        }
+      } catch (error) {
+        console.error("Create subcategory error:", error);
+        toast.error("Failed to create subcategory");
+      }
+    });
   };
 
   const handleCreateNested = async (formData) => {
-    try {
-      const body = JSON.parse(formData.data);
-      const payload = { ...body, parentId: parentForNested?.id };
-      const res = await createCategory({
-        data: JSON.stringify(payload),
-      }).unwrap();
-      toast.promise(Promise.resolve(res), {
-        loading: "Creating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsNestedCreateOpen(false);
-            setParentForNested(null);
-            refetch();
-            return res?.message || "Nested category created successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => error?.message || "Something went wrong",
-      });
-    } catch (error) {
-      console.error("Create nested category error:", error);
-      toast.error("Failed to create nested category");
-      throw error;
-    }
+    startTransition(async () => {
+      try {
+        const body = JSON.parse(formData.data);
+        const payload = { ...body, parentId: parentForNested?.id };
+        const res = await createCategory({
+          data: JSON.stringify(payload),
+        });
+        
+        if (res.success) {
+          toast.success("Nested category created successfully");
+          setIsNestedCreateOpen(false);
+          setParentForNested(null);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to create nested category");
+        }
+      } catch (error) {
+        console.error("Create nested category error:", error);
+        toast.error("Failed to create nested category");
+      }
+    });
   };
 
   const handleUpdate = async (formData) => {
-    try {
-      const res = await updateCategory({
-        id: selectedCategory.id,
-        data: formData,
-      }).unwrap();
-      toast.promise(Promise.resolve(res), {
-        loading: "Updating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsUpdateModalOpen(false);
-            setSelectedCategory(null);
-            refetch();
-            return res?.message || "Category updated successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => {
-          return error?.message || "Something went wrong";
-        },
-      });
-    } catch (error) {
-      console.error("Update error:", error);
-      toast.error("Failed to update category");
-      throw error;
-    }
+    startTransition(async () => {
+      try {
+        const res = await updateCategory(selectedCategory.id, formData);
+        if (res.success) {
+          toast.success("Category updated successfully");
+          setIsUpdateModalOpen(false);
+          setSelectedCategory(null);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to update category");
+        }
+      } catch (error) {
+        console.error("Update error:", error);
+        toast.error("Failed to update category");
+      }
+    });
   };
 
   const handleDelete = async (id) => {
-    try {
-      await deleteCategory(id).unwrap();
-      toast.success("Category deleted successfully");
-      refetch();
-    } catch (error) {
-      toast.error("Failed to delete category");
-      console.error("Delete error:", error);
-    }
+    if (!confirm("Are you sure you want to delete this category?")) return;
+    
+    startTransition(async () => {
+      try {
+        const res = await deleteCategory(id);
+        if (res.success) {
+          toast.success("Category deleted successfully");
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to delete category");
+        }
+      } catch (error) {
+        toast.error("Failed to delete category");
+        console.error("Delete error:", error);
+      }
+    });
   };
 
   const handleEdit = (category) => {
@@ -194,7 +172,7 @@ export function CategoryTable() {
   };
 
   // Helper function to determine category level
-  const getCategoryLevel = (category, allCategories = categories?.data) => {
+  const getCategoryLevel = (category, allCategories = initialCategories) => {
     if (!category.parentId) {
       return "Main";
     }
@@ -219,36 +197,6 @@ export function CategoryTable() {
     // If parent has a parentId, this is a nested category
     return "Nested";
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Search className="w-8 h-8 text-red-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Error loading categories
-        </h3>
-        <p className="text-gray-500 dark:text-gray-400">
-          Failed to load categories. Please try again.
-        </p>
-        <button
-          onClick={() => refetch()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -333,7 +281,7 @@ export function CategoryTable() {
                         {(() => {
                           const level = getCategoryLevel(
                             category,
-                            categories?.data
+                            initialCategories
                           );
                           switch (level) {
                             case "Main":
@@ -374,31 +322,6 @@ export function CategoryTable() {
                           {category.parent.name}
                         </p>
                       )}
-                      {/* Debug information - remove this after testing */}
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        Debug: parentId={category.parentId}, level=
-                        {getCategoryLevel(category, categories?.data)}
-                        {category.parentId && (
-                          <span>
-                            , parent.parentId=
-                            {categories?.data?.find(
-                              (cat) => cat.id === category.parentId
-                            )?.parentId ||
-                              category.parent?.parentId ||
-                              "undefined"}
-                            , totalCategories={categories?.data?.length},
-                            parentFound=
-                            {categories?.data?.find(
-                              (cat) => cat.id === category.parentId
-                            )
-                              ? "Yes"
-                              : "No"}
-                            , usingFallback={category.parent ? "Yes" : "No"},
-                            parentName={category.parent?.name || "None"},
-                            searchTerm={searchTerm || "none"}
-                          </span>
-                        )}
-                      </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {category.products?.length || 0} products
                       </p>

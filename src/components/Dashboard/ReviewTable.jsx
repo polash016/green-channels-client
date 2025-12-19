@@ -1,37 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { motion } from "framer-motion";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import { ReviewModal } from "./ReviewModal";
-import {
-  useGetAllReviewsQuery,
-  useCreateReviewMutation,
-  useUpdateReviewMutation,
-  useDeleteReviewMutation,
-} from "../../redux/api/reviewApi";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import {
+  createReview,
+  updateReview,
+  deleteReview,
+} from "@/lib/actions";
 
-export function ReviewTable() {
+export function ReviewTable({ initialReviews = [] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
 
-  // API hooks
-  const { data: reviews, isLoading, error, refetch } = useGetAllReviewsQuery();
-  const [createReview] = useCreateReviewMutation();
-  const [updateReview] = useUpdateReviewMutation();
-  const [deleteReview] = useDeleteReviewMutation();
-
   // Filter reviews based on search term
-  const filteredReviews =
-    reviews?.data?.filter(
+  const filteredReviews = useMemo(() => {
+    if (!searchTerm) return initialReviews;
+    
+    const lowerTerm = searchTerm.toLowerCase();
+    return initialReviews.filter(
       (review) =>
-        review.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        review.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        review.review.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || [];
+        review.name.toLowerCase().includes(lowerTerm) ||
+        review.title.toLowerCase().includes(lowerTerm) ||
+        review.review.toLowerCase().includes(lowerTerm)
+    );
+  }, [initialReviews, searchTerm]);
 
   const handleCreate = async (formData) => {
     try {
@@ -43,14 +44,19 @@ export function ReviewTable() {
         },
       };
 
-      const res = await createReview(reviewData).unwrap();
-      toast.success("Review created successfully!");
-      setIsCreateModalOpen(false);
-      refetch();
+      startTransition(async () => {
+        const res = await createReview(reviewData);
+        if (res.success) {
+          toast.success("Review created successfully!");
+          setIsCreateModalOpen(false);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to create review");
+        }
+      });
     } catch (error) {
       console.error("Create error:", error);
       toast.error("Failed to create review");
-      throw error;
     }
   };
 
@@ -64,31 +70,40 @@ export function ReviewTable() {
         },
       };
 
-      await updateReview({
-        id: selectedReview.id,
-        data: reviewData,
-      }).unwrap();
-
-      toast.success("Review updated successfully!");
-      setIsUpdateModalOpen(false);
-      setSelectedReview(null);
-      refetch();
+      startTransition(async () => {
+        const res = await updateReview(selectedReview.id, reviewData);
+        if (res.success) {
+          toast.success("Review updated successfully!");
+          setIsUpdateModalOpen(false);
+          setSelectedReview(null);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to update review");
+        }
+      });
     } catch (error) {
       console.error("Update error:", error);
       toast.error("Failed to update review");
-      throw error;
     }
   };
 
   const handleDelete = async (id) => {
-    try {
-      await deleteReview(id).unwrap();
-      toast.success("Review deleted successfully!");
-      refetch();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete review");
-    }
+    if (!confirm("Are you sure you want to delete this review?")) return;
+    
+    startTransition(async () => {
+      try {
+        const res = await deleteReview(id);
+        if (res.success) {
+          toast.success("Review deleted successfully!");
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to delete review");
+        }
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error("Failed to delete review");
+      }
+    });
   };
 
   const openUpdateModal = (review) => {
@@ -105,36 +120,6 @@ export function ReviewTable() {
       minute: "2-digit",
     });
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Search className="w-8 h-8 text-red-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Error loading reviews
-        </h3>
-        <p className="text-gray-500 dark:text-gray-400">
-          Failed to load review data. Please try again.
-        </p>
-        <button
-          onClick={() => refetch()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

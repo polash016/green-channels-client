@@ -11,12 +11,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import LazyImage from "../ui/lazy-image";
-import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
 
-export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
-  const { data: categoriesData, isLoading: categoriesLoading } =
-    useGetCategoriesQuery({ limit: 1000 });
-
+export function ProductModal({ isOpen, onClose, onSubmit, mode, product, categories = [], categoriesLoading = false }) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -134,8 +130,7 @@ export function ProductModal({ isOpen, onClose, onSubmit, mode, product }) {
 
   const isFormValid = formData.name.trim() && formData.categoryId;
 
-  // Build category hierarchy
-  const categories = categoriesData?.data || [];
+  // Build category hierarchy - categories now come from props
   const rootCategories = useMemo(
     () => categories.filter((cat) => !cat.parentId),
     [categories]

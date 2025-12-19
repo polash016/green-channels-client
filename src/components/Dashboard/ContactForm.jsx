@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -12,46 +12,50 @@ import {
   Eye,
   Download,
 } from "lucide-react";
-import {
-  useGetAllContactsQuery,
-  useDeleteContactMutation,
-} from "../../redux/api/contactApi";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { deleteContact } from "@/lib/actions";
 
-export function ContactForm() {
+export function ContactForm({ initialContacts = [] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContact, setSelectedContact] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
-  // Fetch contacts from API
-  const {
-    data: contacts,
-    isLoading,
-    error,
-    refetch,
-  } = useGetAllContactsQuery();
-  const [deleteContact] = useDeleteContactMutation();
-
   // Filter contacts based on search term
-  const filteredContacts =
-    contacts?.data?.filter(
+  const filteredContacts = useMemo(() => {
+    if (!searchTerm) return initialContacts;
+    
+    const lowerTerm = searchTerm.toLowerCase();
+    return initialContacts.filter(
       (contact) =>
-        contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.body.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.email.toLowerCase().includes(lowerTerm) ||
+        contact.subject.toLowerCase().includes(lowerTerm) ||
+        contact.body.toLowerCase().includes(lowerTerm) ||
         (contact.contactNo &&
-          contact.contactNo.toLowerCase().includes(searchTerm.toLowerCase()))
-    ) || [];
+          contact.contactNo.toLowerCase().includes(lowerTerm))
+    );
+  }, [initialContacts, searchTerm]);
 
   const handleDelete = async (id) => {
-    try {
-      await deleteContact(id).unwrap();
-      toast.success("Contact deleted successfully");
-      refetch();
-    } catch (error) {
-      toast.error("Failed to delete contact");
-      console.error("Delete error:", error);
-    }
+    if (!confirm("Are you sure you want to delete this contact?")) return;
+    
+    startTransition(async () => {
+      try {
+        const res = await deleteContact(id);
+        if (res.success) {
+          toast.success("Contact deleted successfully");
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to delete contact");
+        }
+      } catch (error) {
+        toast.error("Failed to delete contact");
+        console.error("Delete error:", error);
+      }
+    });
   };
 
   const handleImageClick = (contact) => {
@@ -68,36 +72,6 @@ export function ContactForm() {
       minute: "2-digit",
     });
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Mail className="w-8 h-8 text-red-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Error loading contacts
-        </h3>
-        <p className="text-gray-500 dark:text-gray-400">
-          Failed to load contact submissions. Please try again.
-        </p>
-        <button
-          onClick={() => refetch()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

@@ -5,17 +5,55 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, User, KeyRound, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
-import { useGetMyProfileQuery } from "@/redux/api/userApi";
+import { getMyProfile } from "@/lib/api";
 import ChangePasswordModal from "./ChangePasswordModal";
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const menuRef = useRef(null);
   const router = useRouter();
 
-  const { data: userProfile, isLoading } = useGetMyProfileQuery();
+  // Fetch user profile client-side
+  useEffect(() => {
+    let mounted = true;
+    
+    async function fetchProfile() {
+      try {
+        setError(null);
+        const data = await getMyProfile();
+        if (mounted) {
+          setUserProfile(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+        if (mounted) {
+          setError(error.message);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+    
+    fetchProfile();
+    return () => { mounted = false; };
+  }, []);
+
+  // Retry profile fetch
+  const retryFetch = () => {
+    setIsLoading(true);
+    setError(null);
+    getMyProfile()
+      .then(data => setUserProfile(data))
+      .catch(err => setError(err.message))
+      .finally(() => setIsLoading(false));
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -64,10 +102,10 @@ export default function UserMenu() {
           </div>
           <div className="text-left">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              {isLoading ? "Loading..." : userProfile?.data?.name || "User"}
+              {isLoading ? "Loading..." : error ? "User" : userProfile?.data?.name || "User"}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              {isLoading ? "..." : userProfile?.data?.email || ""}
+              {isLoading ? "..." : error ? "Error loading profile" : userProfile?.data?.email || ""}
             </div>
           </div>
           <ChevronDown

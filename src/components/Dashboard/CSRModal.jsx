@@ -1,8 +1,4 @@
 import React, { useState, useEffect } from "react";
-import {
-  useCreateCSRMutation,
-  useUpdateCSRMutation,
-} from "../../redux/api/csrApi";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -17,12 +13,10 @@ const CSRModal = ({
   initialData,
   title,
   submitText,
+  isSubmitting = false,
 }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
-
-  const [createCSR, { isLoading: isCreating }] = useCreateCSRMutation();
-  const [updateCSR, { isLoading: isUpdating }] = useUpdateCSRMutation();
 
   useEffect(() => {
     if (initialData) {
@@ -125,12 +119,12 @@ const CSRModal = ({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={isCreating || isUpdating}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating || isUpdating}>
-              {isCreating || isUpdating
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting
                 ? "Saving..."
                 : submitText ||
                   (initialData ? "Update CSR Icon" : "Create CSR Icon")}

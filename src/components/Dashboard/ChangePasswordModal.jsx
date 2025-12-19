@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Eye, EyeOff, KeyRound } from "lucide-react";
-import { useChangePasswordMutation } from "@/redux/api/userApi";
+import { changePassword } from "@/lib/actions";
 import { toast } from "sonner";
 
 export default function ChangePasswordModal({ isOpen, onClose }) {
@@ -17,9 +17,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
     new: false,
     confirm: false,
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [changePassword] = useChangePasswordMutation();
+  const [isPending, startTransition] = useTransition();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,31 +32,30 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      await changePassword({
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword,
-        confirmPassword: formData.confirmPassword,
-      }).unwrap();
+    startTransition(async () => {
+      try {
+        const result = await changePassword({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+          confirmPassword: formData.confirmPassword,
+        });
 
-      toast.success("Password changed successfully");
-      setFormData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      onClose();
-    } catch (error) {
-      console.error("Password change error:", error);
-      toast.error(
-        error?.data?.message ||
-          error?.message ||
-          "Failed to change password. Please check your current password."
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+        if (result.success) {
+          toast.success("Password changed successfully");
+          setFormData({
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+          });
+          onClose();
+        } else {
+          toast.error(result.error || "Failed to change password. Please check your current password.");
+        }
+      } catch (error) {
+        console.error("Password change error:", error);
+        toast.error("Failed to change password. Please check your current password.");
+      }
+    });
   };
 
   const togglePasswordVisibility = (field) => {
@@ -134,7 +131,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                       className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter current password"
                       required
-                      disabled={isSubmitting}
+                      disabled={isPending}
                     />
                     <button
                       type="button"
@@ -168,7 +165,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                       className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter new password"
                       required
-                      disabled={isSubmitting}
+                      disabled={isPending}
                       minLength={6}
                     />
                     <button
@@ -206,7 +203,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                       className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Confirm new password"
                       required
-                      disabled={isSubmitting}
+                      disabled={isPending}
                     />
                     <button
                       type="button"
@@ -228,16 +225,16 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                     type="button"
                     onClick={onClose}
                     className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-neutral-600 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
-                    disabled={isSubmitting}
+                    disabled={isPending}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                    disabled={!isFormValid || isSubmitting}
+                    disabled={!isFormValid || isPending}
                   >
-                    {isSubmitting ? (
+                    {isPending ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         <span>Changing...</span>

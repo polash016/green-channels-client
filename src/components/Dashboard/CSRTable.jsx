@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -12,45 +12,35 @@ import {
   Award,
   X,
 } from "lucide-react";
-import {
-  useGetCSRsQuery,
-  useCreateCSRMutation,
-  useUpdateCSRMutation,
-  useDeleteCSRMutation,
-} from "../../redux/api/csrApi";
 import { toast } from "sonner";
 import CSRModal from "./CSRModal";
 import LazyImage from "../ui/lazy-image";
+import { useRouter } from "next/navigation";
+import {
+  createCSR,
+  updateCSR,
+  deleteCSR,
+} from "@/lib/actions";
 
-export function CSRTable() {
+export function CSRTable({ initialCSRs = [] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedCSR, setSelectedCSR] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
-  // API hooks
-  const {
-    data: csrs,
-    isLoading,
-    error,
-    refetch,
-  } = useGetCSRsQuery({
-    searchTerm,
-    page: 1,
-    limit: 100,
-  });
-  const [createCSR] = useCreateCSRMutation();
-  const [updateCSR] = useUpdateCSRMutation();
-  const [deleteCSR] = useDeleteCSRMutation();
-
-  console.log(csrs);
-
   // Filter CSRs based on search term
-  const filteredCSRs =
-    csrs?.data?.filter((csr) =>
-      csr.icon.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || [];
+  const filteredCSRs = useMemo(() => {
+    if (!searchTerm) return initialCSRs;
+    
+    const lowerTerm = searchTerm.toLowerCase();
+    return initialCSRs.filter((csr) =>
+      csr.icon.toLowerCase().includes(lowerTerm)
+    );
+  }, [initialCSRs, searchTerm]);
 
   const handleCreate = async (formData) => {
     try {
@@ -60,8 +50,6 @@ export function CSRTable() {
         formDataToSend.append("file", formData.image);
       }
 
-      console.log(formData);
-
       formDataToSend.append(
         "data",
         JSON.stringify({
@@ -69,26 +57,19 @@ export function CSRTable() {
         })
       );
 
-      const res = await createCSR(formDataToSend).unwrap();
-      toast.promise(Promise.resolve(res), {
-        loading: "Creating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsCreateModalOpen(false);
-            refetch();
-            return res?.message || "CSR icon created successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => {
-          return error?.message || "Something went wrong";
-        },
+      startTransition(async () => {
+        const res = await createCSR(formDataToSend);
+        if (res.success) {
+          toast.success("CSR icon created successfully");
+          setIsCreateModalOpen(false);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to create CSR icon");
+        }
       });
     } catch (error) {
       console.error("Create error:", error);
       toast.error("Failed to create CSR icon");
-      throw error;
     }
   };
 
@@ -107,42 +88,40 @@ export function CSRTable() {
         })
       );
 
-      const res = await updateCSR({
-        id: selectedCSR.id,
-        formData: formDataToSend,
-      }).unwrap();
-      toast.promise(Promise.resolve(res), {
-        loading: "Updating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setIsUpdateModalOpen(false);
-            setSelectedCSR(null);
-            refetch();
-            return res?.message || "CSR icon updated successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => {
-          return error?.message || "Something went wrong";
-        },
+      startTransition(async () => {
+        const res = await updateCSR(selectedCSR.id, formDataToSend);
+        if (res.success) {
+          toast.success("CSR icon updated successfully");
+          setIsUpdateModalOpen(false);
+          setSelectedCSR(null);
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to update CSR icon");
+        }
       });
     } catch (error) {
       console.error("Update error:", error);
       toast.error("Failed to update CSR icon");
-      throw error;
     }
   };
 
   const handleDelete = async (id) => {
-    try {
-      await deleteCSR(id).unwrap();
-      toast.success("CSR icon deleted successfully");
-      refetch();
-    } catch (error) {
-      toast.error("Failed to delete CSR icon");
-      console.error("Delete error:", error);
-    }
+    if (!confirm("Are you sure you want to delete this CSR icon?")) return;
+    
+    startTransition(async () => {
+      try {
+        const res = await deleteCSR(id);
+        if (res.success) {
+          toast.success("CSR icon deleted successfully");
+          router.refresh();
+        } else {
+          toast.error(res.error || "Failed to delete CSR icon");
+        }
+      } catch (error) {
+        toast.error("Failed to delete CSR icon");
+        console.error("Delete error:", error);
+      }
+    });
   };
 
   const handleEdit = (csr) => {
@@ -164,36 +143,6 @@ export function CSRTable() {
       minute: "2-digit",
     });
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ImageIcon className="w-8 h-8 text-red-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Error loading CSR icons
-        </h3>
-        <p className="text-gray-500 dark:text-gray-400">
-          Failed to load CSR icons. Please try again.
-        </p>
-        <button
-          onClick={() => refetch()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
