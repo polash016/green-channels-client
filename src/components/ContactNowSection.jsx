@@ -1,18 +1,19 @@
 "use client";
 import { motion } from "framer-motion";
-import { Mail, Phone, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Vortex } from "@/components/ui/vortex";
 import { FileUpload } from "@/components/ui/file-upload";
-import { useState } from "react";
-import { useCreateContactMutation } from "@/redux/api/contactApi";
+import { useState, useTransition } from "react";
+import { createContact } from "@/lib/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 export function ContactNowSection() {
-  const [createContact, { isLoading: isSubmitting, isError, isSuccess }] =
-    useCreateContactMutation();
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  
   const [formData, setFormData] = useState({
     email: "",
     subject: "",
@@ -39,52 +40,51 @@ export function ContactNowSection() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      // Create FormData for sending files and data
-      const formDataToSend = new FormData();
+    const formDataToSend = new FormData();
 
-      // Add the contact object data as JSON string
-      const contactData = {
-        contact: {
-          email: formData.email || "info@greenchannels.com",
-          contactNo: formData.contactNo,
-          subject: formData.subject,
-          body: formData.body,
-        },
-      };
+    // Add the contact object data as JSON string
+    const contactData = {
+      contact: {
+        email: formData.email || "info@greenchannels.com",
+        contactNo: formData.contactNo,
+        subject: formData.subject,
+        body: formData.body,
+      },
+    };
 
-      formDataToSend.append("data", JSON.stringify(contactData));
+    formDataToSend.append("data", JSON.stringify(contactData));
 
-      if (formData.files.length > 0) {
-        formDataToSend.append(`file`, formData.files[0]);
-      }
-
-      const res = createContact(formDataToSend).unwrap();
-
-      toast.promise(res, {
-        loading: "Creating...",
-        success: (res) => {
-          if (res?.data?.id) {
-            setFormData({
-              email: "",
-              subject: "",
-              contactNo: "",
-              body: "",
-              files: [],
-            });
-            return res?.message || "Contact created successfully";
-          } else {
-            return res?.message;
-          }
-        },
-        error: (error) => {
-          return error?.message || "Something went wrong";
-        },
-      });
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      alert("Error sending message. Please try again.");
+    if (formData.files.length > 0) {
+      formDataToSend.append(`file`, formData.files[0]);
     }
+
+    startTransition(async () => {
+      try {
+        const result = await createContact(formDataToSend);
+
+        if (result.success) {
+          toast.success("Message sent successfully!", {
+            description: "We'll get back to you within 24 hours.",
+          });
+          setFormData({
+            email: "",
+            subject: "",
+            contactNo: "",
+            body: "",
+            files: [],
+          });
+          router.refresh();
+        } else {
+          toast.error("Failed to send message", {
+            description: result.error || "Please try again later.",
+          });
+        }
+      } catch (error) {
+        toast.error("An error occurred", {
+          description: "Please try again later.",
+        });
+      }
+    });
   };
 
   return (
@@ -181,7 +181,7 @@ export function ContactNowSection() {
                     onChange={handleInputChange}
                     className="w-full rounded-md border-none bg-neutral-900/70 px-3 py-2 text-sm text-white placeholder:text-neutral-400 focus-visible:ring-[2px] focus-visible:ring-neutral-600 focus-visible:outline-none"
                     required
-                  />
+                  ></textarea>
                 </div>
               </div>
 
@@ -204,14 +204,14 @@ export function ContactNowSection() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isPending}
                 className={`w-full flex items-center justify-center gap-2 py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
-                  isSubmitting
+                  isPending
                     ? "bg-gray-600 cursor-not-allowed"
                     : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-green-500/25"
                 }`}
               >
-                {isSubmitting ? (
+                {isPending ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     Sending...
@@ -224,38 +224,6 @@ export function ContactNowSection() {
                 )}
               </motion.button>
             </form>
-
-            {/* Submit Status Messages */}
-            {isSuccess && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-green-400 text-center p-3 bg-green-900/20 rounded-lg border border-green-500/30"
-              >
-                ✅ Message sent successfully!
-              </motion.div>
-            )}
-
-            {isError && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-red-400 text-center p-3 bg-red-900/20 rounded-lg border border-red-500/30"
-              >
-                ❌ Error sending message. Please try again.
-              </motion.div>
-            )}
-
-            <div className="flex gap-8 mt-6 text-gray-200">
-              <div className="flex items-center gap-2">
-                <Mail className="w-5 h-5" />
-                <span>info@greenchannels.com</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-5 h-5" />
-                <span>+880 1682507450</span>
-              </div>
-            </div>
           </motion.div>
         </div>
       </Vortex>

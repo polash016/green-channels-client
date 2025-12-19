@@ -1,56 +1,52 @@
 "use client";
 import { FocusCards } from "../ui/focus-cards";
-import { useGetAllProductsQuery } from "@/redux/api/productsApi";
-import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
-import { useState, useEffect, useCallback, memo, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useSelector, useDispatch } from "react-redux";
-import {
-  setCategory,
-  setSubcategory,
-  setNestedCategory,
-  setSearchTerm,
-  clearFilters,
-  setFiltersFromUrl,
-} from "@/redux/slices/productFilterSlice";
 import Image from "next/image";
 import { Search, Filter, ChevronRight, Home, Package } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export const ProductGallery = memo(function ProductGallery() {
+export const ProductGallery = function ProductGallery({ initialProducts = [], categories = [], categoriesLoading = false }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const dispatch = useDispatch();
 
-  // Redux state
-  const { selectedCategory, subcategoryId, nestedCategoryId } = useSelector(
-    (state) => state.productFilter
-  );
+  // Derive state from URL params
+  const selectedCategory = searchParams.get("categoryId");
+  const subcategoryId = searchParams.get("subcategoryId");
+  const nestedCategoryId = searchParams.get("nestedCategoryId");
+  const urlSearchTerm = searchParams.get("searchTerm") || "";
 
   // Local state for UI
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Debounced search
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-
+  // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
+      if (searchTerm !== urlSearchTerm) {
+        const params = new URLSearchParams(searchParams.toString());
+        if (searchTerm) {
+          params.set("searchTerm", searchTerm);
+        } else {
+          params.delete("searchTerm");
+        }
+        router.push(`/products?${params.toString()}`);
+      }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, urlSearchTerm, router, searchParams]);
 
-  // Get categories for filtering
-  const { data: categoriesData, isLoading: categoriesLoading } =
-    useGetCategoriesQuery({ limit: 1000 });
+  // Sync local search term if URL changes externally
+  useEffect(() => {
+    setSearchTerm(urlSearchTerm);
+  }, [urlSearchTerm]);
 
   // Get subcategories and nested categories for the selected main category
   const mainCategorySubcategories = useMemo(() => {
-    if (!selectedCategory || !categoriesData?.data) return [];
+    if (!selectedCategory || !categories) return [];
 
-    const categories = categoriesData.data;
     const mainCategory = categories.find((cat) => cat.id === selectedCategory);
     if (!mainCategory) return [];
 
@@ -59,27 +55,26 @@ export const ProductGallery = memo(function ProductGallery() {
       (cat) => cat.parentId === selectedCategory
     );
 
+
     // Get nested categories (children of subcategories)
     const nestedCategories = categories.filter((cat) =>
       subcategories.some((sub) => sub.id === cat.parentId)
     );
 
     return { subcategories, nestedCategories };
-  }, [selectedCategory, categoriesData?.data]);
+  }, [selectedCategory, categories]);
 
   // Get nested categories for the selected subcategory
   const subcategoryNestedCategories = useMemo(() => {
-    if (!subcategoryId || !categoriesData?.data) return [];
-
-    const categories = categoriesData.data;
+    if (!subcategoryId || !categories) return [];
     return categories.filter((cat) => cat.parentId === subcategoryId);
-  }, [subcategoryId, categoriesData?.data]);
+  }, [subcategoryId, categories]);
 
   // Build breadcrumb path based on current filters
   const breadcrumbPath = useMemo(() => {
-    if (!categoriesData?.data) return [];
+    if (!categories) return [];
 
-    const categories = categoriesData.data;
+
     const path = [];
 
     // Find the current category in the hierarchy
@@ -118,60 +113,15 @@ export const ProductGallery = memo(function ProductGallery() {
 
     buildPath(currentCategory);
     return path;
-  }, [categoriesData?.data, selectedCategory, subcategoryId, nestedCategoryId]);
+  }, [categories, selectedCategory, subcategoryId, nestedCategoryId]);
 
-  // Initialize filters from URL
-  useEffect(() => {
-    const cat = searchParams.get("categoryId") || "";
-    const sub = searchParams.get("subcategoryId") || "";
-    const nested = searchParams.get("nestedCategoryId") || "";
+  // URL params are already being used directly via searchParams
 
-    // Dispatch to Redux store
-    dispatch(
-      setFiltersFromUrl({
-        categoryId: cat,
-        subcategoryId: sub,
-        nestedCategoryId: nested,
-      })
-    );
-  }, [searchParams, dispatch]);
-
-  // Build query parameters with useMemo for better performance
-  const queryParams = useMemo(() => {
-    const params = {};
-
-    // Only add searchTerm if it exists and is not empty
-    if (debouncedSearchTerm && debouncedSearchTerm.trim()) {
-      params.searchTerm = debouncedSearchTerm;
-    }
-
-    // Only fetch products for nested categories, not for main or subcategories
-    if (nestedCategoryId) {
-      params.nestedCategoryId = nestedCategoryId;
-    }
-    // Don't add categoryId or subcategoryId - we'll show navigation instead
-
-    return params;
-  }, [debouncedSearchTerm, nestedCategoryId]);
-
-  const {
-    data: productsResponse,
-    isLoading,
-    error,
-    refetch,
-  } = useGetAllProductsQuery(queryParams, {
-    // Force refetch when parameters change
-    refetchOnMountOrArgChange: true,
-  });
-
-  // Redux will automatically trigger re-renders when state changes
-
-  // Extract products
-  const products = productsResponse?.data || [];
+  // Products are passed via props
+  const products = initialProducts || [];
 
   const handleCategoryChange = useCallback(
     (categoryId) => {
-      dispatch(setCategory(categoryId));
       const params = new URLSearchParams(window.location.search);
       if (categoryId) {
         params.set("categoryId", categoryId);
@@ -182,14 +132,13 @@ export const ProductGallery = memo(function ProductGallery() {
       }
       router.push(`/products?${params.toString()}`);
     },
-    [router, dispatch]
+    [router]
   );
 
   const handleClearFilters = useCallback(() => {
     setSearchTerm("");
-    dispatch(clearFilters());
     router.push("/products");
-  }, [router, dispatch]);
+  }, [router]);
 
   // Handle breadcrumb navigation
   const handleBreadcrumbClick = useCallback(
@@ -205,26 +154,17 @@ export const ProductGallery = memo(function ProductGallery() {
       if (level === 0) {
         // Root category
         params.set("categoryId", categoryId);
-        dispatch(setCategory(categoryId));
-        dispatch(setSubcategory(""));
-        dispatch(setNestedCategory(""));
       } else if (level === 1) {
         // Subcategory
         params.set("subcategoryId", categoryId);
-        dispatch(setCategory(""));
-        dispatch(setSubcategory(categoryId));
-        dispatch(setNestedCategory(""));
       } else if (level === 2) {
         // Nested category
         params.set("nestedCategoryId", categoryId);
-        dispatch(setCategory(""));
-        dispatch(setSubcategory(""));
-        dispatch(setNestedCategory(categoryId));
       }
 
       router.push(`/products?${params.toString()}`);
     },
-    [router, dispatch]
+    [router]
   );
 
   // Transform database products to match the expected format for FocusCards
@@ -246,56 +186,6 @@ export const ProductGallery = memo(function ProductGallery() {
       ].filter(Boolean),
     }));
   }, [products]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-neutral-900 py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-              Our Products
-            </h1>
-            <p className="text-xl text-neutral-300 max-w-3xl mx-auto">
-              Discover our premium collection of textiles and materials, crafted
-              with precision and designed for excellence.
-            </p>
-          </div>
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-neutral-900 py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-              Our Products
-            </h1>
-            <p className="text-xl text-neutral-300 max-w-3xl mx-auto">
-              Discover our premium collection of textiles and materials, crafted
-              with precision and designed for excellence.
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-red-400 text-lg mb-4">
-              Failed to load products. Please try again later.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-neutral-900 py-20 px-4">
@@ -333,7 +223,7 @@ export const ProductGallery = memo(function ProductGallery() {
                   // Fallback: show current category name if breadcrumb path is empty
                   <span className="text-white font-medium">
                     {
-                      categoriesData?.data?.find(
+                      categories?.find(
                         (cat) =>
                           cat.id === selectedCategory ||
                           cat.id === subcategoryId ||
@@ -456,7 +346,7 @@ export const ProductGallery = memo(function ProductGallery() {
                           <span className="px-3 py-1 bg-green-600 text-white text-xs rounded-full">
                             Category:{" "}
                             {
-                              categoriesData?.data?.find(
+                              categories?.find(
                                 (c) => c.id === selectedCategory
                               )?.name
                             }
@@ -478,7 +368,7 @@ export const ProductGallery = memo(function ProductGallery() {
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-500">
-                        {categoriesData?.data?.length || 0}
+                        {categories?.length || 0}
                       </div>
                       <div className="text-sm text-neutral-400">Categories</div>
                     </div>
@@ -503,7 +393,7 @@ export const ProductGallery = memo(function ProductGallery() {
               <h3 className="text-2xl font-bold text-white mb-8">
                 Browse{" "}
                 {
-                  categoriesData?.data?.find(
+                  categories?.find(
                     (cat) => cat.id === selectedCategory
                   )?.name
                 }
@@ -603,7 +493,7 @@ export const ProductGallery = memo(function ProductGallery() {
             <div className="max-w-6xl mx-auto">
               <h3 className="text-2xl font-bold text-white mb-8">
                 {
-                  categoriesData?.data?.find((cat) => cat.id === subcategoryId)
+                  categories?.find((cat) => cat.id === subcategoryId)
                     ?.name
                 }
               </h3>
@@ -703,4 +593,4 @@ export const ProductGallery = memo(function ProductGallery() {
       </div>
     </div>
   );
-});
+};

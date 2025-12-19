@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   IconBrandFacebook,
   IconBrandTwitter,
@@ -15,6 +16,7 @@ import {
 } from "@tabler/icons-react";
 
 export function Footer() {
+  const whatsappUrl = "https://wa.me/+8801713031742";
   const socialLinks = [
     {
       name: "Facebook",
@@ -51,11 +53,12 @@ export function Footer() {
             className="lg:col-span-1 space-y-6"
           >
             <div className="flex items-center space-x-3">
-              <img
+              <Image
                 src="/logo.png"
                 alt="Green Channels Logo"
                 width={160}
                 height={200}
+                className="h-auto w-auto"
               />
               {/* <span className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
                 Green Channels
@@ -88,20 +91,20 @@ export function Footer() {
               <div className="flex items-center space-x-3">
                 <IconMail className="h-5 w-5 text-green-400 flex-shrink-0" />
                 <a
-                  href="mailto:info@greenchannels.com"
+                  href="mailto:alain@greenchannels.com"
                   className="text-gray-300 hover:text-green-400 transition-colors"
                 >
-                  info@greenchannels.com
+                  alain@greenchannels.com
                 </a>
               </div>
 
               <div className="flex items-center space-x-3">
                 <IconPhone className="h-5 w-5 text-green-400 flex-shrink-0" />
                 <a
-                  href="tel:+8801682507450"
+                  href="tel:+8801713031742"
                   className="text-gray-300 hover:text-green-400 transition-colors"
                 >
-                  +880 1682507450
+                  +8801713031742
                 </a>
               </div>
             </div>

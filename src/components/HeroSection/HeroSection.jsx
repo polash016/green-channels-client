@@ -4,6 +4,8 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowDownIcon } from "lucide-react";
 import { Button } from "../ui/button";
+import Link from "next/link";
+import Image from "next/image";
 
 const HeroSection = ({
   title = "More than 35 years experience with Bangladesh's Garment Manufacturers",
@@ -31,9 +33,11 @@ const HeroSection = ({
           >
             <source src={backgroundVideo} type="video/mp4" />
             {/* Fallback image if video fails to load */}
-            <img
+            <Image
               src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1920&q=80"
               alt="Fashion background"
+              width={1920}
+              height={1080}
               className="w-full h-full object-cover"
             />
           </video>
@@ -59,13 +63,12 @@ const HeroSection = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
           >
-            <a
-              size="lg"
+            <Link
               href="/products"
               className="bg-white text-gray-900 hover:bg-gray-200 cursor-pointer text-base md:text-lg px-8 py-3 rounded-md"
             >
               {ctaText}
-            </a>
+            </Link>
           </motion.div>
         </motion.div>
       </div>

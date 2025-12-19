@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 export default function TrustedBy({
   logos = [
@@ -52,10 +53,12 @@ export default function TrustedBy({
                   key={`${logo.src}-${i}`}
                   className="flex items-center gap-3"
                 >
-                  <img
+                  <Image
                     src={logo.src}
                     alt={logo.name}
-                    className="h-12 md:h-10 object-contain drop-shadow-sm"
+                    width={100}
+                    height={48}
+                    className="h-12 md:h-10 w-auto object-contain drop-shadow-sm"
                   />
                   <span className="hidden md:inline text-white/80 text-sm font-medium">
                     {logo.name}

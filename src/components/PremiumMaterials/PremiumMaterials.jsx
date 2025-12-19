@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialModal } from "@/components/MaterialModal";
@@ -99,8 +100,16 @@ const MaterialShowcase = ({ materials }) => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-12">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-white/5 rounded-2xl overflow-hidden border border-white/10">
+                <Skeleton className="aspect-square w-full" />
+                <div className="p-4 space-y-3">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/4 rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -108,7 +117,7 @@ const MaterialShowcase = ({ materials }) => {
         {error && (
           <div className="text-center py-12">
             <p className="text-red-500">
-              Failed to load products. Using default materials.
+              Failed to load products. Please try again later.
             </p>
           </div>
         )}
@@ -125,9 +134,11 @@ const MaterialShowcase = ({ materials }) => {
             <motion.div key={material.id} variants={itemVariants}>
               <Card className="overflow-hidden h-full transition-all hover:shadow-lg dark:bg-neutral-800 dark:border-neutral-700 group">
                 <div className="relative aspect-square overflow-hidden">
-                  <img
+                  <Image
                     src={material.imgUrl || material.image}
                     alt={material.name}
+                    width={500}
+                    height={500}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">

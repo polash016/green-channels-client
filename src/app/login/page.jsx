@@ -160,7 +160,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="Enter your email"
                   value={formData.email}
-                  defaultValue="rubel@greenchannels.com"
+                  defaultValue="alain@greenchannels.com"
                   onChange={handleInputChange}
                   className={`pl-10 pr-4 py-3 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-green-500 focus:ring-green-500/20 transition-all duration-200 ${
                     errors.email

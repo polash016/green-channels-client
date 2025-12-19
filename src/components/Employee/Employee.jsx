@@ -1,21 +1,15 @@
 "use client";
-import { useGetAllEmployeesQuery } from "@/redux/api/employeeApi";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export function Employee() {
+export function Employee({ employees = [], isLoading = false }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const {
-    data: employeesResponse,
-    isLoading,
-    error,
-  } = useGetAllEmployeesQuery({
-    searchTerm: searchTerm || undefined,
-  });
-  // Transform database employees to match the expected format for AnimatedTestimonials
+  
+  // Transform database employees to match the expected format
   const transformedEmployees =
-    employeesResponse?.data?.map((employee) => ({
+    employees?.map((employee) => ({
       quote:
         employee.description ||
         "Our dedicated team member contributing to excellence.",
@@ -28,27 +22,22 @@ export function Employee() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-sm px-4 py-20 font-sans antialiased md:max-w-4xl md:px-8 lg:px-12">
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
+      <div className="mx-auto max-w-7xl px-4 py-10">
+        <div className="text-center mb-16">
+          <Skeleton className="h-10 w-64 mx-auto mb-4" />
+          <Skeleton className="h-6 w-96 mx-auto" />
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mx-auto max-w-sm px-4 py-20 font-sans antialiased md:max-w-4xl md:px-8 lg:px-12">
-        <div className="text-center">
-          <p className="text-red-400 text-lg mb-4">
-            Failed to load employee data. Please try again later.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Retry
-          </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white/5 rounded-2xl overflow-hidden border border-white/10">
+              <Skeleton className="h-72 w-full" />
+              <div className="p-6 space-y-4">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -61,7 +50,7 @@ export function Employee() {
           <p className="text-neutral-400 text-lg">
             {searchTerm
               ? "No employees found matching your search."
-              : "No employees available at the moment."}
+              : "No employee data available."}
           </p>
         </div>
       </div>
@@ -69,33 +58,35 @@ export function Employee() {
   }
 
   return (
-    <div className="w-full">
-      {/* Search functionality */}
-      <div className="max-w-md mx-auto mb-8">
-        {/* <input
-          type="text"
-          placeholder="Search employees..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:border-green-500"
-        /> */}
-      </div>
+    <div className="mx-auto max-w-7xl px-4 py-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+        className="text-center mb-16"
+      >
+        <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+          Our Dedicated Team
+        </h2>
+        <p className="text-lg text-neutral-300 max-w-3xl mx-auto">
+          Meet the experts behind Green Channels Ltd. who ensure excellence in every step of our textile and garment sourcing process.
+        </p>
+      </motion.div>
 
-      {/* Employee Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {transformedEmployees.map((employee, index) => (
           <motion.div
             key={index}
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: index * 0.1, duration: 0.6 }}
-            className="group relative"
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
+            className="group"
           >
-            {/* Employee Card */}
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              {/* Image Container */}
-              <div className="relative h-80 overflow-hidden">
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105">
+              {/* Image */}
+              <div className="relative h-72 w-full overflow-hidden bg-neutral-200">
                 <Image
                   src={employee.src}
                   alt={employee.name}

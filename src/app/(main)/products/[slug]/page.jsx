@@ -1,38 +1,36 @@
-"use client";
 import React from "react";
 import Link from "next/link";
-import { useGetSingleProductQuery } from "@/redux/api/productsApi";
-import { useParams, useRouter } from "next/navigation";
+import { getSingleProduct } from "@/lib/api";
 import { ProductImageGallery } from "@/components/products/ProductImageGallery";
 
-const ProductShowcasePage = () => {
-  const { slug: slugData } = useParams();
-  const router = useRouter();
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const productData = await getSingleProduct(slug);
+  const product = productData?.data;
 
-  const {
-    data: productSData,
-    isLoading,
-    error,
-  } = useGetSingleProductQuery(slugData);
-
-  const product = productSData?.data;
-
-  const handleContactClick = () => {
-    router.push("/#contact");
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-neutral-900 text-neutral-200 flex items-center justify-center px-6">
-        <div className="max-w-xl text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-500 mx-auto mb-4"></div>
-          <p className="text-lg">Loading product details...</p>
-        </div>
-      </div>
-    );
+  if (!product) {
+    return {
+      title: "Product Not Found",
+    };
   }
 
-  if (error || !product) {
+  return {
+    title: product.name,
+    description: product.description || `Premium quality ${product.name} from Green Channels Ltd.`,
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      images: product.imgUrls?.[0] ? [{ url: product.imgUrls[0] }] : [],
+    },
+  };
+}
+
+export default async function ProductShowcasePage({ params }) {
+  const { slug } = await params;
+  const productData = await getSingleProduct(slug);
+  const product = productData?.data;
+
+  if (!product) {
     return (
       <div className="min-h-screen bg-neutral-900 text-neutral-200 flex items-center justify-center px-6">
         <div className="max-w-xl text-center">
@@ -61,7 +59,6 @@ const ProductShowcasePage = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-          {/* Image Gallery */}
           <div className="space-y-6">
             <ProductImageGallery
               images={product.imgUrls || []}
@@ -69,7 +66,6 @@ const ProductShowcasePage = () => {
             />
           </div>
 
-          {/* Product Details */}
           <div className="space-y-6">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -81,58 +77,15 @@ const ProductShowcasePage = () => {
               </p>
             </div>
 
-            {/* Product Specifications */}
-            {/* <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-white">
-                Product Details
-              </h3>
-              <div className="grid grid-cols-1 gap-3">
-                {product.composition && (
-                  <div className="flex justify-between py-2 border-b border-neutral-700">
-                    <span className="text-neutral-400">Composition:</span>
-                    <span className="text-white">{product.composition}</span>
-                  </div>
-                )}
-                {product.material && (
-                  <div className="flex justify-between py-2 border-b border-neutral-700">
-                    <span className="text-neutral-400">Material:</span>
-                    <span className="text-white">{product.material}</span>
-                  </div>
-                )}
-                {product.status && (
-                  <div className="flex justify-between py-2 border-b border-neutral-700">
-                    <span className="text-neutral-400">Status:</span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        product.status === "PREMIUM"
-                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                          : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                      }`}
-                    >
-                      {product.status}
-                    </span>
-                  </div>
-                )}
-                {product.category?.name && (
-                  <div className="flex justify-between py-2 border-b border-neutral-700">
-                    <span className="text-neutral-400">Category:</span>
-                    <span className="text-white">{product.category.name}</span>
-                  </div>
-                )}
-              </div>
-            </div> */}
-
-            {/* Call to Action */}
             <div className="pt-6">
-              <button
-                onClick={handleContactClick}
+              <Link
+                href="/#contact"
                 className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-6 py-4 font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500"
               >
                 Contact to source this product
-              </button>
+              </Link>
             </div>
 
-            {/* Additional Info */}
             <div className="pt-4 text-sm text-neutral-400">
               <p>
                 Interested in this product? Contact us for pricing,
@@ -144,6 +97,4 @@ const ProductShowcasePage = () => {
       </div>
     </div>
   );
-};
-
-export default ProductShowcasePage;
+}
