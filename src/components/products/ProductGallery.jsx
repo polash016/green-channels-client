@@ -188,7 +188,7 @@ export const ProductGallery = function ProductGallery({ initialProducts = [], ca
   }, [products]);
 
   return (
-    <div className="min-h-screen bg-neutral-900 py-20 px-4">
+    <div className="min-h-screen py-20 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           {/* Category Breadcrumb */}

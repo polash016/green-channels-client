@@ -13,7 +13,7 @@ export default async function AboutPage() {
   const employees = employeesData?.data || [];
 
   return (
-    <div className="bg-gradient-to-br from-blue-900/80 via-neutral-900 to-neutral-950 min-h-screen">
+    <div className="min-h-screen">
       <OurMission />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <Employee employees={employees} />

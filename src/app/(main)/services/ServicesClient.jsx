@@ -5,7 +5,7 @@ import { ContactNowSection } from "@/components/ContactNowSection";
 
 export default function ServicesClient() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900/80 via-neutral-900 to-neutral-950 flex flex-col items-center">
+    <div className="min-h-screen flex flex-col items-center">
       {/* Compact Banner */}
       <motion.section
         initial={{ opacity: 0, y: 40 }}

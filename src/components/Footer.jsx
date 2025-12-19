@@ -41,7 +41,7 @@ export function Footer() {
   ];
 
   return (
-    <footer className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 text-white">
+    <footer className="bg-neutral-950/50 backdrop-blur-md border-t border-white/5 text-white">
       <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">

@@ -6,6 +6,7 @@ import { Search, Plus, Edit, Trash2, Eye } from "lucide-react";
 import { CategoryModal } from "./CategoryModal";
 import { SubcategoryModal } from "./SubcategoryModal";
 import { NestedCategoryModal } from "./NestedCategoryModal";
+import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -23,6 +24,8 @@ export function CategoryTable({ initialCategories = [] }) {
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isSubCreateOpen, setIsSubCreateOpen] = useState(false);
   const [isNestedCreateOpen, setIsNestedCreateOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [parentForSub, setParentForSub] = useState(null);
   const [parentForNested, setParentForNested] = useState(null);
@@ -54,106 +57,88 @@ export function CategoryTable({ initialCategories = [] }) {
 
   const handleCreate = async (formData) => {
     startTransition(async () => {
-      try {
-        const res = await createCategory(formData);
-        if (res.success) {
-          toast.success("Category created successfully");
-          setIsCreateModalOpen(false);
-          router.refresh();
-        } else {
-          toast.error(res.error || "Failed to create category");
-        }
-      } catch (error) {
-        console.error("Create error:", error);
-        toast.error("Failed to create category");
+      const res = await createCategory(formData);
+      if (res.success) {
+        toast.success("Category created successfully");
+        setIsCreateModalOpen(false);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to create category");
       }
     });
   };
 
   const handleCreateSub = async (formData) => {
     startTransition(async () => {
-      try {
-        const body = JSON.parse(formData.data);
-        const payload = { ...body, parentId: parentForSub?.id };
-        const res = await createCategory({
-          data: JSON.stringify(payload),
-        });
-        
-        if (res.success) {
-          toast.success("Subcategory created successfully");
-          setIsSubCreateOpen(false);
-          setParentForSub(null);
-          router.refresh();
-        } else {
-          toast.error(res.error || "Failed to create subcategory");
-        }
-      } catch (error) {
-        console.error("Create subcategory error:", error);
-        toast.error("Failed to create subcategory");
+      const body = JSON.parse(formData.data);
+      const payload = { ...body, parentId: parentForSub?.id };
+      const res = await createCategory({
+        data: JSON.stringify(payload),
+      });
+      
+      if (res.success) {
+        toast.success("Subcategory created successfully");
+        setIsSubCreateOpen(false);
+        setParentForSub(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to create subcategory");
       }
     });
   };
 
   const handleCreateNested = async (formData) => {
     startTransition(async () => {
-      try {
-        const body = JSON.parse(formData.data);
-        const payload = { ...body, parentId: parentForNested?.id };
-        const res = await createCategory({
-          data: JSON.stringify(payload),
-        });
-        
-        if (res.success) {
-          toast.success("Nested category created successfully");
-          setIsNestedCreateOpen(false);
-          setParentForNested(null);
-          router.refresh();
-        } else {
-          toast.error(res.error || "Failed to create nested category");
-        }
-      } catch (error) {
-        console.error("Create nested category error:", error);
-        toast.error("Failed to create nested category");
+      const body = JSON.parse(formData.data);
+      const payload = { ...body, parentId: parentForNested?.id };
+      const res = await createCategory({
+        data: JSON.stringify(payload),
+      });
+      
+      if (res.success) {
+        toast.success("Nested category created successfully");
+        setIsNestedCreateOpen(false);
+        setParentForNested(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to create nested category");
       }
     });
   };
 
   const handleUpdate = async (formData) => {
     startTransition(async () => {
-      try {
-        const res = await updateCategory(selectedCategory.id, formData);
-        if (res.success) {
-          toast.success("Category updated successfully");
-          setIsUpdateModalOpen(false);
-          setSelectedCategory(null);
-          router.refresh();
-        } else {
-          toast.error(res.error || "Failed to update category");
-        }
-      } catch (error) {
-        console.error("Update error:", error);
-        toast.error("Failed to update category");
+      const res = await updateCategory(selectedCategory.id, formData);
+      if (res.success) {
+        toast.success("Category updated successfully");
+        setIsUpdateModalOpen(false);
+        setSelectedCategory(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to update category");
       }
     });
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this category?")) return;
+  const handleDelete = async () => {
+    if (!categoryToDelete) return;
     
     startTransition(async () => {
-      try {
-        const res = await deleteCategory(id);
-        if (res.success) {
-          toast.success("Category deleted successfully");
-          router.refresh();
-        } else {
-          toast.error(res.error || "Failed to delete category");
-        }
-      } catch (error) {
-        toast.error("Failed to delete category");
-        console.error("Delete error:", error);
+      const res = await deleteCategory(categoryToDelete);
+      if (res.success) {
+        toast.success("Category deleted successfully");
+        setIsDeleteModalOpen(false);
+        setCategoryToDelete(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to delete category");
       }
     });
+  };
+
+  const confirmDelete = (id) => {
+    setCategoryToDelete(id);
+    setIsDeleteModalOpen(true);
   };
 
   const handleEdit = (category) => {
@@ -336,7 +321,7 @@ export function CategoryTable({ initialCategories = [] }) {
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(category.id)}
+                      onClick={() => confirmDelete(category.id)}
                       className="p-2 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
                       title="Delete category"
                     >
@@ -450,6 +435,19 @@ export function CategoryTable({ initialCategories = [] }) {
         parentCategoryOptions={filteredCategories}
         title="Create Nested Category"
         submitText="Create Nested"
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={handleDelete}
+        isPending={isPending}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? All subcategories and products associated with it might be affected."
       />
     </div>
   );

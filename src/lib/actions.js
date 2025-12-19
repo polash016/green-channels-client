@@ -14,27 +14,42 @@ async function mutate(endpoint, method, data, tagToInvalidate, isFormData = fals
   const token = cookieStore.get('accessToken')?.value;
   
   const headers = {};
-  if (!isFormData) {
-    headers['Content-Type'] = 'application/json';
-  }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  if (isDev) {
-    console.log(`[Server Action] ${method} ${endpoint}`);
+  const options = {
+    method,
+    headers,
+  };
+
+  if (data) {
+    if (isFormData) {
+      options.body = data;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(data);
+    }
   }
 
   try {
-    const res = await fetch(url, {
-      method,
-      headers,
-      body: isFormData ? data : JSON.stringify(data),
-    });
+    const res = await fetch(url, options);
+
+    const text = await res.text();
+    let responseData = { success: true };
+    
+    if (text && text.trim() !== "" && text !== "null") {
+      try {
+        responseData = JSON.parse(text);
+      } catch (e) {
+        if (isDev) {
+          console.error(`[Server Action] JSON parse error for ${endpoint}:`, e.message);
+        }
+      }
+    }
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const errorMessage = errorData.message || `Failed to ${method.toLowerCase()} resource`;
+      const errorMessage = responseData.message || `Failed to ${method.toLowerCase()} resource (${res.status})`;
       
       if (isDev) {
         console.error(`[Server Action Error] ${method} ${endpoint}:`, { 
@@ -55,8 +70,6 @@ async function mutate(endpoint, method, data, tagToInvalidate, isFormData = fals
     if (relatedPaths.length > 0) {
       relatedPaths.forEach(path => revalidatePath(path));
     }
-
-    const responseData = await res.json();
     
     if (isDev) {
       console.log(`[Server Action Success] ${method} ${endpoint}`);

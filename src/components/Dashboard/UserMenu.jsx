@@ -32,7 +32,8 @@ export default function UserMenu() {
       } catch (error) {
         console.error("Failed to fetch profile:", error);
         if (mounted) {
-          setError(error.message);
+          setError("Failed to load profile");
+          // Don't throw here to prevent top-level error boundaries from catching it if not needed
         }
       } finally {
         if (mounted) {

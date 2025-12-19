@@ -31,7 +31,7 @@ export default function OurMission() {
   }, [slides.length]);
 
   return (
-    <section className="w-full py-20 bg-gradient-to-br from-neutral-950 via-slate-900 to-zinc-900">
+    <section className="w-full py-20">
       {/* Test image - remove this after testing */}
 
       <div className="max-w-7xl mx-auto px-4">

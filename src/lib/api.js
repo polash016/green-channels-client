@@ -30,13 +30,24 @@ async function fetchWithTags(endpoint, tags = [], params = {}, options = {}) {
       headers,
     });
 
+    const text = await res.text();
+    let responseData = { success: true };
+    
+    if (text && text.trim() !== "" && text !== "null") {
+      try {
+        responseData = JSON.parse(text);
+      } catch (e) {
+        console.error(`JSON parse error for ${endpoint}:`, e.message);
+      }
+    }
+
     if (!res.ok) {
-      const errorMessage = `Failed to fetch data from ${endpoint} (${res.status})`;
+      const errorMessage = responseData.message || `Failed to fetch data from ${endpoint} (${res.status})`;
       console.error(errorMessage);
       throw new Error(errorMessage);
     }
 
-    return res.json();
+    return responseData;
   } catch (error) {
     console.error(`Error fetching ${endpoint}:`, error);
     // Return empty structure on error to prevent crashes, but log the error
@@ -104,5 +115,5 @@ export async function getUserById(id) {
 }
 
 export async function getMyProfile() {
-  return fetchWithTags('/users/my', ['User'], {}, { requiresAuth: true });
+  return fetchWithTags('/users/my-profile', ['User'], {}, { requiresAuth: true });
 }

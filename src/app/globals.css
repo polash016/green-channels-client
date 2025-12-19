@@ -115,23 +115,23 @@ button {
 }
 
 .dark {
-  --background: #171717; /* neutral-900 */
+  --background: #0a0a0a; /* Deeper black for smoother gradients */
   --foreground: #fafafa;
-  --card: #262626; /* neutral-800 */
+  --card: #171717; /* neutral-900 */
   --card-foreground: #fafafa;
-  --popover: #262626;
+  --popover: #171717;
   --popover-foreground: #fafafa;
   --primary: #fafafa;
   --primary-foreground: #171717;
-  --secondary: #404040;
+  --secondary: #262626;
   --secondary-foreground: #fafafa;
-  --muted: #404040;
+  --muted: #262626;
   --muted-foreground: #a3a3a3;
-  --accent: #404040;
+  --accent: #262626;
   --accent-foreground: #fafafa;
   --destructive: #dc2626;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
   --ring: #737373;
 }
 
@@ -140,6 +140,8 @@ button {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground min-h-screen;
+    @apply text-foreground min-h-screen;
+    background: radial-gradient(circle at 50% 0%, #171717 0%, #0a0a0a 100%);
+    background-attachment: fixed;
   }
 }

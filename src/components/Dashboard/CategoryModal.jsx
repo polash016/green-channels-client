@@ -41,9 +41,8 @@ export function CategoryModal({
       await onSubmit({ data: JSON.stringify(formData) });
       setFormData({ name: "" });
       onClose();
-      toast.success("Saved successfully");
     } catch (error) {
-      toast.error(error?.message || "Something went wrong");
+      console.error("Modal submit error:", error);
     } finally {
       setIsSubmitting(false);
     }
