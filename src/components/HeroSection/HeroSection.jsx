@@ -29,6 +29,8 @@ const HeroSection = ({
             muted
             loop
             playsInline
+            preload="metadata"
+            poster="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1920&q=50"
             className="w-full h-full object-cover"
           >
             <source src={backgroundVideo} type="video/mp4" />
@@ -36,9 +38,11 @@ const HeroSection = ({
             <Image
               src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1920&q=80"
               alt="Fashion background"
-              width={1920}
-              height={1080}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              priority
+              quality={85}
+              sizes="100vw"
             />
           </video>
         </motion.div>
