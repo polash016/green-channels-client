@@ -1,31 +1,68 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
+// Cache for prefetched data
+const dataCache = new Map();
+
 /**
- * Prefetch Component
- * Preloads critical routes, images, and data in the background
- * for instant navigation and better UX
+ * Enhanced Prefetch Component
+ * Intelligently preloads routes, images, and API data in the background
+ * Uses idle time detection and caches responses for instant navigation
  */
 export function Prefetch() {
   const router = useRouter();
+  const [isIdle, setIsIdle] = useState(false);
 
   useEffect(() => {
-    // Prefetch critical routes in the background
-    const prefetchRoutes = () => {
-      // Wait a bit for the initial page to load first
-      setTimeout(() => {
-        // Prefetch all main navigation routes
-        router.prefetch("/about");
-        router.prefetch("/services");
-        router.prefetch("/products");
-        router.prefetch("/csr");
-      }, 2000); // Wait 2 seconds after page load
+    let idleTimer;
+    
+    // Detect when user is idle (not interacting)
+    const detectIdle = () => {
+      clearTimeout(idleTimer);
+      setIsIdle(false);
+      
+      // User is considered idle after 2 seconds of no interaction
+      idleTimer = setTimeout(() => {
+        setIsIdle(true);
+      }, 2000);
     };
 
-    // Preload critical images from other pages
+    // Listen for user activity
+    window.addEventListener('mousemove', detectIdle);
+    window.addEventListener('scroll', detectIdle);
+    window.addEventListener('keydown', detectIdle);
+    window.addEventListener('touchstart', detectIdle);
+
+    // Initial idle detection
+    detectIdle();
+
+    return () => {
+      clearTimeout(idleTimer);
+      window.removeEventListener('mousemove', detectIdle);
+      window.removeEventListener('scroll', detectIdle);
+      window.removeEventListener('keydown', detectIdle);
+      window.removeEventListener('touchstart', detectIdle);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isIdle) return;
+
+    // Prefetch critical routes
+    const prefetchRoutes = () => {
+      const routes = ["/about", "/services", "/products", "/csr"];
+      
+      routes.forEach((route, index) => {
+        setTimeout(() => {
+          router.prefetch(route);
+        }, index * 500); // Stagger prefetching to avoid overwhelming the network
+      });
+    };
+
+    // Preload critical images
     const preloadImages = () => {
       const imagesToPreload = [
         "/about_us.jpeg",
@@ -34,26 +71,75 @@ export function Prefetch() {
         "/logo.png",
       ];
 
-      imagesToPreload.forEach((src) => {
-        const link = document.createElement("link");
-        link.rel = "prefetch";
-        link.as = "image";
-        link.href = src;
-        document.head.appendChild(link);
+      imagesToPreload.forEach((src, index) => {
+        setTimeout(() => {
+          const link = document.createElement("link");
+          link.rel = "prefetch";
+          link.as = "image";
+          link.href = src;
+          document.head.appendChild(link);
+        }, index * 300);
       });
     };
 
-    // Execute prefetching
-    prefetchRoutes();
-    preloadImages();
+    // Prefetch product data from API
+    const prefetchProductData = async () => {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      
+      try {
+        // Check if data is already cached
+        if (dataCache.has('products')) {
+          console.log('Products already cached');
+          return;
+        }
 
-    // Cleanup
-    return () => {
-      // No cleanup needed for prefetch
+        // Prefetch products list (with limit for initial load)
+        const productsResponse = await fetch(`${API_URL}/products?limit=20`);
+        if (productsResponse.ok) {
+          const productsData = await productsResponse.json();
+          dataCache.set('products', productsData);
+          console.log('✅ Prefetched products data');
+        }
+      } catch (error) {
+        console.log('Prefetch skipped (network/API issue)');
+      }
     };
-  }, [router]);
 
-  // This component doesn't render anything
+    // Prefetch categories data
+    const prefetchCategoriesData = async () => {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      
+      try {
+        if (dataCache.has('categories')) {
+          console.log('Categories already cached');
+          return;
+        }
+
+        const categoriesResponse = await fetch(`${API_URL}/categories?limit=100`);
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json();
+          dataCache.set('categories', categoriesData);
+          console.log('✅ Prefetched categories data');
+        }
+      } catch (error) {
+        console.log('Category prefetch skipped');
+      }
+    };
+
+    // Execute prefetching strategies in order of priority
+    setTimeout(() => {
+      prefetchRoutes();        // Priority 1: Routes
+      preloadImages();         // Priority 2: Images
+      
+      // Wait a bit more before fetching data (lower priority)
+      setTimeout(() => {
+        prefetchProductData();   // Priority 3: Product data
+        prefetchCategoriesData(); // Priority 4: Category data
+      }, 2000);
+    }, 1000); // Start after 1 second of being idle
+
+  }, [isIdle, router]);
+
   return null;
 }
 
@@ -76,4 +162,19 @@ export function ImagePreloader({ images = [] }) {
       ))}
     </div>
   );
+}
+
+/**
+ * Get cached data
+ * Use this in your pages to retrieve prefetched data
+ */
+export function getCachedData(key) {
+  return dataCache.get(key);
+}
+
+/**
+ * Check if data is cached
+ */
+export function hasCachedData(key) {
+  return dataCache.has(key);
 }

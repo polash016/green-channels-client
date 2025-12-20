@@ -8,16 +8,15 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/NavBar/NavBar";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { getUserInfo } from "@/services/auth.service";
+import { DashboardLink, MobileDashboardLink } from "@/components/NavBar/DashboardLink";
 import { IconBrandWhatsapp, IconDownload } from "@tabler/icons-react";
-import { useEffect, useMemo, useState, memo, useCallback } from "react";
+import { useMemo, useState, memo, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
 const ResponsiveNavbar = memo(function ResponsiveNavbar({ initialCategories = [] }) {
-  const user = getUserInfo();
-  const navItems = [
+  // Static nav items (server-side compatible)
+  const navItems = useMemo(() => [
     {
       name: "About Us",
       link: "/about",
@@ -30,15 +29,7 @@ const ResponsiveNavbar = memo(function ResponsiveNavbar({ initialCategories = []
       name: "CSR",
       link: "/csr",
     },
-    ...(user?.id
-      ? [
-          {
-            name: "Dashboard",
-            link: "/dashboard",
-          },
-        ]
-      : []),
-  ];
+  ], []);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
@@ -137,6 +128,9 @@ const ResponsiveNavbar = memo(function ResponsiveNavbar({ initialCategories = []
             {item.name}
           </Link>
         ))}
+        
+        {/* Dynamic Dashboard Link (Client Component) */}
+        <DashboardLink />
 
         {/* Categories Dropdown */}
         <div
@@ -461,6 +455,9 @@ const ResponsiveNavbar = memo(function ResponsiveNavbar({ initialCategories = []
                   <span className="block">{item.name}</span>
                 </a>
               ))}
+              
+              {/* Dynamic Dashboard Link (Client Component) */}
+              <MobileDashboardLink onClose={() => setIsMobileMenuOpen(false)} />
 
               {/* Categories - Inline with other nav items */}
               <div className="relative">
